@@ -400,7 +400,7 @@ export const S = {
         "Xonadonni band qilish, katalog va toʻliq shartlar — Telegram botimizda. "
         + "QR kodni telefon kamerasi bilan skanerlang.",
       scan: "Skanerlang",
-      handleFallback: "@imarat_development",
+      handleFallback: "@ImaratDevelopmentBot",
     },
     end: {
       title: "Rahmat!",
