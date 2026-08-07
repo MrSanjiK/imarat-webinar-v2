@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+@theme {
+  /* Palette lifted from the client's hand-drawn architectural banners. */
+  --color-paper: #f4f1ea;
+  --color-paper-2: #e9e4d8;
+  --color-paper-3: #dcd5c5;
+  --color-ink: #2b2a28;
+  --color-ink-2: #4a4844;
+  --color-ash: #8b867e;
+  --color-forest: #0e5c43;
+  --color-leaf: #3ed66a;
+  --color-gold: #c8a24a;
+  --color-ember: #c7502f;
+
+  /* Playfair Display cannot draw ғ Қ қ ҳ; Playfair, loaded for cyrillic-ext,
+     can. The literal family name leads on purpose — var(--font-playfair)
+     expands to «"Playfair Display", "Playfair Display Fallback"», and that
+     second entry is a local Times New Roman at size-adjust 111.26% claiming
+     U+0-10FFFF, so through the variable it answers for ҳ before any real face
+     is asked. Naming the primary, then the ext face, then the variable keeps
+     the metric fallback available for the swap without letting it intercept.
+     Do not collapse this back to var(--font-playfair) first. */
+  --font-display: "Playfair Display", var(--font-playfair-ext),
+    var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* Same shape as --font-display, same reason. JetBrains Mono has ў but not
+     ʻ ғ ҳ қ Ғ Ҳ Қ, and Caveat has the Cyrillic but not ʻ — and "Boʻlim 01"
+     is a mono kicker on all six chapter openers. Inter carries every one of
+     them, so it goes second; without the literal family in front, the
+     "* Fallback" face inside each variable would answer first and the glyph
+     would come from whatever local font that machine resolves to. */
+  --font-mono: "JetBrains Mono", var(--font-inter), var(--font-tech),
+    ui-monospace, monospace;
+  --font-hand: "Caveat", var(--font-inter), var(--font-caveat), cursive;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #17161a;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* The deck is driven by a clicker. Selection and scrolling are hazards. */
+.deck-root {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Numbers must not reflow while counters tick. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Paper tooth. Static background-image — never animated. */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(43, 42, 40, 0.05) 1px,
+    transparent 0
+  );
+  background-size: 4px 4px;
+}
+
+.grain-dark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(244, 241, 234, 0.045) 1px,
+    transparent 0
+  );
+  background-size: 4px 4px;
+}
+
+/* Drafting dot-grid used in slide corners. */
+.dotgrid {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(43, 42, 40, 0.22) 1.1px,
+    transparent 0
+  );
+  background-size: 22px 22px;
+}
+.dotgrid-light {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(244, 241, 234, 0.24) 1.1px,
+    transparent 0
+  );
+  background-size: 22px 22px;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
