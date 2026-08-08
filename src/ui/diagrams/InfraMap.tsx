@@ -1,479 +1,310 @@
 "use client";
 
-import { useId, useMemo } from "react";
 import { motion } from "motion/react";
 import { EASE } from "@/deck/types";
 import { useLang } from "@/content/lang";
 import { t } from "@/content/i18n";
 import { S } from "@/content/strings";
-import {
-  Annotation,
-  C,
-  SketchEllipse,
-  SketchLine,
-  SketchPath,
-  SketchRect,
-  hatch,
-  wobbleEllipse,
-  wobbleLine,
-  type Pt,
-} from "@/ui/sketch";
+import { V } from "@/ui/vivid";
 
 /**
- * InfraMap — a locality sheet in architect's pencil. The argument the slide is
- * making is that the surroundings set the price, so Sergeli City is drawn as a
- * plain ink parcel in the middle and everything that is being built around it
- * lands in forest green.
+ * InfraMap — v2 "IMARAT Vivid". A bold flat-vector locality plate: Sergeli City
+ * is one solid emerald block in the middle, and the four things being built
+ * around it are numbered discs on the ends of drawn routes.
  *
- * Step choreography — the slide has five states and reveals one pin per step.
- *   0 — empty paper.
- *   1 — the sheet draws: the Sergeli City parcel with its hatch and name, six
- *       faint neighbouring blocks for urban fabric, then pin 01 (airport).
- *   2 — pin 02, the metro station.
- *   3 — pin 03, the new highway.
- *   4 — pin 04, Eco Park.
+ * Step map (the slide passes its own `step` straight through, 0–4):
+ *   0 — the sheet: faint ink fabric blocks, then the Sergeli City node lands.
+ *   1 — the four POI discs drop in, staggered, with a 1.25 → 1 scale pop.
+ *   2 — the routes draw out of the node (pathLength), emerald, round caps.
+ *   3 — the name plates settle under each disc with their proximity chip.
+ *   4 — focus beat: the airport route and disc go gold, the rest sit back.
  *
- * Each pin lands as a four-beat cascade ~120 ms apart: the forest route leaves
- * the parcel, the landmark draws itself, the numbered badge pops, the name
- * settles underneath. Pin leads are staggered 120 ms so a jump straight into
- * the middle of the slide still cascades instead of flashing all four at once.
+ * On the missing numbers: the client supplied no kilometres and no drive times
+ * for any of the four, so there is nothing here to count up. The map states
+ * adjacency and quotes the qualitative descriptors verbatim out of
+ * `S.city.infra.pins[i].d` — inventing "12 km" for the stage would be the one
+ * unrecoverable mistake this slide could make.
  *
- * Deliberately silent on distance. The client supplied no kilometres and no
- * drive times, so the map states adjacency and nothing more — the qualitative
- * descriptions ("walking distance", "next to the project") stay in the slide's
- * own list, where they are quoted verbatim.
- *
- * Pure function of `step`: every `on` is monotonic, so 4 → 3 leaves the sheet
- * exactly as 3 built it.
+ * Pure function of `step`: every `on` below is a monotonic comparison, so
+ * arriving at 4 backwards renders exactly what arriving forwards renders. Only
+ * transform / opacity / pathLength animate.
  */
 
-// ── sheet geometry ───────────────────────────────────────────────────────────
+// ── geometry, in the 1000 × 620 viewBox ──────────────────────────────────────
 
-/** The Sergeli City parcel. Everything else is positioned off this. */
-const BLOCK = { x: 366, y: 252, w: 168, h: 92 } as const;
-const BLOCK_LABEL: Pt = [450, 388];
+const HUB = { x: 280, y: 240, w: 300, h: 140, r: 30 } as const;
+const HUB_C = { x: HUB.x + HUB.w / 2, y: HUB.y + HUB.h / 2 } as const;
 
-/** Neighbouring blocks — urban fabric, drawn faint, placed only where no
- *  landmark, route or label can ever reach them. */
-const FABRIC = [
-  { x: 292, y: 44, w: 96, h: 56 },
-  { x: 420, y: 40, w: 116, h: 60 },
-  { x: 808, y: 62, w: 92, h: 64 },
-  { x: 36, y: 262, w: 92, h: 46 },
-  { x: 404, y: 452, w: 104, h: 62 },
-  { x: 692, y: 494, w: 128, h: 46 },
-] as const;
-
-type PinSpec = {
-  /** Where the route leaves the parcel. */
-  from: Pt;
-  /** Badge centre, sitting on the landmark itself. */
-  at: Pt;
-  /** Name anchor. Chosen per pin so the Cyrillic form — ~10% wider — still
-   *  clears the 940 px edge. */
-  label: Pt;
-  anchor: "start" | "middle";
-  seed: number;
-  /** Stagger between pins, so a multi-step jump cascades. */
-  lead: number;
+type Poi = {
+  /** Disc centre. */
+  at: readonly [number, number];
+  /** Route: start on the node's edge, one control point, end short of the disc. */
+  route: readonly [number, number, number, number, number, number];
+  icon: "plane" | "metro" | "road" | "park";
 };
 
-const PINS: readonly PinSpec[] = [
-  // 01 airport — lower right, badge on the runway
-  { from: [534, 330], at: [777, 395], label: [748, 470], anchor: "middle", seed: 101, lead: 0.62 },
-  // 02 metro — upper right, badge is the station on the line
-  { from: [520, 252], at: [668, 200], label: [668, 156], anchor: "middle", seed: 131, lead: 0.12 },
-  // 03 highway — upper left, badge is the junction
-  { from: [366, 286], at: [216, 196], label: [252, 176], anchor: "start", seed: 163, lead: 0.24 },
-  // 04 eco park — lower left, badge in the middle of the parcel
-  { from: [372, 344], at: [222, 428], label: [222, 526], anchor: "middle", seed: 197, lead: 0.36 },
+/**
+ * Routes start *inside* the node — routes paint before the node does, so the
+ * block covers the stub and each line appears to leave its rounded edge. Each
+ * control point is chosen so the curve clears the destination's own name plate:
+ * the plate hangs below the disc, which on the left-hand pins is exactly where
+ * an unconsidered route would run.
+ */
+const POIS: readonly Poi[] = [
+  // 01 · airport — upper right, the longest reach and the focus beat's subject
+  { at: [840, 180], route: [540, 255, 690, 195, 793, 185], icon: "plane" },
+  // 02 · metro — lower right
+  { at: [830, 440], route: [540, 365, 690, 425, 783, 435], icon: "metro" },
+  // 03 · highway — upper left
+  { at: [150, 150], route: [340, 255, 250, 170, 195, 158], icon: "road" },
+  // 04 · eco park — lower left, the existing neighbour
+  { at: [160, 436], route: [340, 365, 250, 410, 204, 423], icon: "park" },
 ];
 
-// landmark geometry
-const RUNWAY: [Pt, Pt] = [[668, 434], [886, 356]];
-const RAIL: [Pt, Pt] = [[560, 200], [884, 200]];
-const HIGHWAY: [Pt, Pt] = [[128, 352], [304, 40]];
-const PARK = { cx: 222, cy: 428, rx: 118, ry: 72 } as const;
-/** Fits inside the park ellipse with room to spare, so no clip is needed. */
-const PARK_HATCH = { x: 162, y: 392, w: 120, h: 72 } as const;
+const DISC_R = 42;
+const PLATE_W = 268;
+const PLATE_H = 104;
 
-// ── pencil helpers ───────────────────────────────────────────────────────────
+/** Urban fabric. Confined to the top and bottom bands of the central corridor,
+ *  the one region no disc, route or name plate can reach in either alphabet. */
+const FABRIC = [
+  { x: 288, y: 40, w: 104, h: 56 },
+  { x: 414, y: 36, w: 132, h: 60 },
+  { x: 568, y: 52, w: 88, h: 44 },
+  { x: 686, y: 40, w: 70, h: 52 },
+  { x: 300, y: 470, w: 120, h: 58 },
+  { x: 444, y: 476, w: 96, h: 48 },
+  { x: 566, y: 470, w: 74, h: 44 },
+  { x: 330, y: 552, w: 180, h: 40 },
+] as const;
 
-/** Pull the far end of a segment back, so a route stops clear of its badge. */
-function shorten(a: Pt, b: Pt, cut: number): Pt {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const len = Math.hypot(dx, dy) || 1;
-  return [b[0] - (dx / len) * cut, b[1] - (dy / len) * cut];
-}
+const curve = (r: Poi["route"]) => `M ${r[0]} ${r[1]} Q ${r[2]} ${r[3]} ${r[4]} ${r[5]}`;
 
-/** One edge of a dual carriageway or a runway: the centreline, pushed sideways. */
-function offsetEdge(a: Pt, b: Pt, off: number, seed: number, amp = 1.2): string {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const len = Math.hypot(dx, dy) || 1;
-  const nx = (-dy / len) * off;
-  const ny = (dx / len) * off;
-  return wobbleLine(a[0] + nx, a[1] + ny, b[0] + nx, b[1] + ny, seed, amp);
-}
+// ── icons, drawn around a local 0,0 so the disc's scale pop stays centred ────
 
-/** Perpendicular strokes across a line — sleepers on a rail, thresholds on a
- *  runway. `ts` are positions along the line, so the badge can be stepped over. */
-function crossTicks(a: Pt, b: Pt, ts: readonly number[], half: number, seed: number): string {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const len = Math.hypot(dx, dy) || 1;
-  const nx = (-dy / len) * half;
-  const ny = (dx / len) * half;
-  return ts
-    .map((f, i) => {
-      const px = a[0] + dx * f;
-      const py = a[1] + dy * f;
-      return wobbleLine(px - nx, py - ny, px + nx, py + ny, seed + i * 3, 0.6);
-    })
-    .join(" ");
-}
-
-/** Broken centreline, as `[from, to]` fractions along the road. */
-function centreDashes(a: Pt, b: Pt, spans: readonly (readonly [number, number])[], seed: number): string {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  return spans
-    .map(([t0, t1], i) =>
-      wobbleLine(a[0] + dx * t0, a[1] + dy * t0, a[0] + dx * t1, a[1] + dy * t1, seed + i * 5, 0.6),
-    )
-    .join(" ");
-}
-
-// ── local primitives ─────────────────────────────────────────────────────────
-
-/**
- * 45° hatch revealed by sliding an oversized mask, not by scaling it.
- *
- * The shared `Hatch` scales a clip rect around a pixel `transform-origin`, and
- * motion overwrites `transform-origin` with `50% 50%` on SVG the moment a
- * transform exists — so that wipe opens from the middle of the box instead of
- * its left edge. A translate has no origin to lose.
- */
-function HatchWipe({
-  x,
-  y,
-  w,
-  h,
-  on,
-  gap = 11,
-  seed = 1,
-  stroke = C.ink,
-  width = 1.4,
-  opacity = 0.2,
-  delay = 0,
-  duration = 0.7,
-}: {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  on: boolean;
-  gap?: number;
-  seed?: number;
-  stroke?: string;
-  width?: number;
-  opacity?: number;
-  delay?: number;
-  duration?: number;
-}) {
-  const uid = useId().replace(/:/g, "");
-  const boxId = `imap-box-${uid}`;
-  const wipeId = `imap-wipe-${uid}`;
-  const d = useMemo(() => hatch(x, y, w, h, gap, 45, seed), [x, y, w, h, gap, seed]);
-
-  return (
-    <g>
-      <defs>
-        <clipPath id={boxId}>
-          <rect x={x} y={y} width={w} height={h} />
-        </clipPath>
-        <clipPath id={wipeId}>
-          <motion.rect
-            x={x}
-            y={y - 4}
-            width={w}
-            height={h + 8}
-            initial={false}
-            animate={{ x: on ? 0 : -w - 2 }}
-            transition={{ duration, ease: EASE, delay: on ? delay : 0 }}
-          />
-        </clipPath>
-      </defs>
-      <g clipPath={`url(#${boxId})`}>
-        <g clipPath={`url(#${wipeId})`}>
-          <path d={d} fill="none" stroke={stroke} strokeWidth={width} opacity={opacity} />
+function Icon({ kind }: { kind: Poi["icon"] }) {
+  const s = { fill: "none", stroke: V.paper, strokeWidth: 2.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (kind) {
+    case "plane":
+      return <path d="M -15 3 L 15 -6 M -15 3 L -3 10 M -15 3 L -6 -6 M 6 -9 L 13 -13" {...s} strokeWidth={3} />;
+    case "metro":
+      return (
+        <g {...s}>
+          <rect x={-11} y={-14} width={22} height={20} rx={6} />
+          <path d="M -11 -4 L 11 -4 M -8 12 L -4 6 M 8 12 L 4 6" />
+          <circle cx={-5.5} cy={1} r={0.9} fill={V.paper} stroke="none" />
+          <circle cx={5.5} cy={1} r={0.9} fill={V.paper} stroke="none" />
         </g>
-      </g>
-    </g>
-  );
+      );
+    case "road":
+      return (
+        <g {...s}>
+          <path d="M -13 14 L -5 -14 M 13 14 L 5 -14" />
+          <path d="M 0 -12 L 0 -5 M 0 -1 L 0 6 M 0 10 L 0 14" strokeWidth={3} />
+        </g>
+      );
+    case "park":
+      return (
+        <g {...s}>
+          <path d="M 0 -14 L 11 4 L -11 4 Z" />
+          <path d="M 0 4 L 0 14" strokeWidth={3} />
+        </g>
+      );
+  }
 }
 
-/**
- * The numbered pin, keyed to the 01–04 column the slide prints beside the map.
- *
- * Geometry is drawn around a local origin and placed by a plain `<g transform>`,
- * so the scale pop resolves against the badge's own box — motion's forced
- * `50% 50%` origin is the right answer here rather than a hazard.
- */
-function PinBadge({
-  at,
-  n,
-  on,
-  delay,
-  seed,
-}: {
-  at: Pt;
-  n: string;
-  on: boolean;
-  delay: number;
-  seed: number;
-}) {
-  const ring = useMemo(() => wobbleEllipse(0, 0, 17, 17, seed, 1.2), [seed]);
-
-  return (
-    <g transform={`translate(${at[0]} ${at[1]})`}>
-      <motion.g
-        initial={false}
-        animate={{ opacity: on ? 1 : 0, scale: on ? 1 : 0.55 }}
-        transition={{ duration: 0.34, ease: EASE, delay: on ? delay : 0 }}
-      >
-        {/* Knocks the hatch and the route out from under the numeral. */}
-        <circle r={18} fill={C.paper} opacity={0.95} />
-        <path d={ring} fill="none" stroke={C.forest} strokeWidth={2.6} strokeLinecap="round" />
-        <text
-          y={6}
-          textAnchor="middle"
-          fontSize={17}
-          fill={C.forest}
-          className="tnum font-mono"
-        >
-          {n}
-        </text>
-      </motion.g>
-    </g>
-  );
-}
-
-// ── the diagram ──────────────────────────────────────────────────────────────
+// ── the plate ────────────────────────────────────────────────────────────────
 
 export function InfraMap({ step }: { step: number }) {
   const lang = useLang();
   const pins = S.city.infra.pins;
 
-  const sheet = step >= 1;
-
-  const g = useMemo(() => {
-    const [rwA, rwB] = RUNWAY;
-    const [rlA, rlB] = RAIL;
-    const [hwA, hwB] = HIGHWAY;
-    return {
-      routes: PINS.map((p) => ({ from: p.from, end: shorten(p.from, p.at, 26) })),
-      runwayL: offsetEdge(rwA, rwB, 13, 211),
-      runwayR: offsetEdge(rwA, rwB, -13, 217),
-      runwayEnds: crossTicks(rwA, rwB, [0.03, 0.97], 14, 223),
-      runwayMarks: centreDashes(
-        rwA,
-        rwB,
-        [
-          [0.1, 0.18],
-          [0.24, 0.32],
-          [0.62, 0.7],
-          [0.76, 0.84],
-        ],
-        229,
-      ),
-      sleepers: crossTicks(
-        rlA,
-        rlB,
-        [0.05, 0.14, 0.23, 0.46, 0.58, 0.7, 0.82, 0.94],
-        9,
-        241,
-      ),
-      highwayL: offsetEdge(hwA, hwB, 8, 251),
-      highwayR: offsetEdge(hwA, hwB, -8, 257),
-      highwayMarks: centreDashes(
-        hwA,
-        hwB,
-        [
-          [0.06, 0.16],
-          [0.24, 0.34],
-          [0.62, 0.72],
-          [0.8, 0.9],
-        ],
-        263,
-      ),
-    };
-  }, []);
+  const focus = step >= 4;
 
   return (
-    <svg viewBox="0 0 940 560" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      {/* ── the sheet: fabric, then the parcel the whole slide is about ─────── */}
+    <svg viewBox="0 0 1000 620" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+      {/* ── fabric ───────────────────────────────────────────────────────────*/}
       {FABRIC.map((b, i) => (
-        <SketchRect
+        <motion.rect
           key={`${b.x}-${b.y}`}
           x={b.x}
           y={b.y}
-          w={b.w}
-          h={b.h}
-          seed={11 + i * 7}
-          amp={1.3}
-          on={sheet}
-          stroke={C.ink}
-          width={1.3}
-          opacity={0.18}
-          delay={0.24 + i * 0.05}
-          duration={0.34}
+          width={b.w}
+          height={b.h}
+          rx={10}
+          fill="rgba(10,31,20,0.05)"
+          initial={false}
+          animate={{ opacity: step >= 0 ? 1 : 0, scale: step >= 0 ? 1 : 0.9 }}
+          transition={{ duration: 0.5, ease: EASE, delay: 0.04 + i * 0.03 }}
         />
       ))}
 
-      <SketchRect
-        x={BLOCK.x}
-        y={BLOCK.y}
-        w={BLOCK.w}
-        h={BLOCK.h}
-        seed={71}
-        amp={1.6}
-        on={sheet}
-        stroke={C.ink}
-        width={2.8}
-        duration={0.55}
-      />
-      <HatchWipe
-        x={BLOCK.x + 8}
-        y={BLOCK.y + 8}
-        w={BLOCK.w - 16}
-        h={BLOCK.h - 16}
-        on={sheet}
-        gap={12}
-        seed={83}
-        stroke={C.ink}
-        opacity={0.18}
-        delay={0.26}
-        duration={0.6}
-      />
-      <Annotation
-        x={BLOCK_LABEL[0]}
-        y={BLOCK_LABEL[1]}
-        text={t(S.brand.project, lang)}
-        on={sheet}
-        color={C.ink}
-        size={32}
-        anchor="middle"
-        delay={0.44}
-      />
-
-      {/* ── routes out of the parcel ────────────────────────────────────────── */}
-      {g.routes.map((r, i) => (
-        <SketchLine
-          key={`route-${i}`}
-          x1={r.from[0]}
-          y1={r.from[1]}
-          x2={r.end[0]}
-          y2={r.end[1]}
-          seed={PINS[i].seed}
-          amp={1.5}
-          on={step >= i + 1}
-          stroke={C.forest}
-          width={1.8}
-          opacity={0.5}
-          delay={PINS[i].lead}
-          duration={0.42}
-        />
-      ))}
-
-      {/* ── 01 · airport: two runway edges, thresholds, centreline ──────────── */}
-      <g>
-        <SketchPath d={g.runwayL} on={step >= 1} stroke={C.forest} width={2.2} opacity={0.9} delay={PINS[0].lead + 0.12} duration={0.6} />
-        <SketchPath d={g.runwayR} on={step >= 1} stroke={C.forest} width={2.2} opacity={0.9} delay={PINS[0].lead + 0.18} duration={0.6} />
-        <SketchPath d={g.runwayEnds} on={step >= 1} stroke={C.forest} width={2} opacity={0.8} delay={PINS[0].lead + 0.34} duration={0.28} />
-        <SketchPath d={g.runwayMarks} on={step >= 1} stroke={C.forest} width={1.6} opacity={0.6} delay={PINS[0].lead + 0.4} duration={0.32} />
-      </g>
-
-      {/* ── 02 · metro: the line, then its sleepers ─────────────────────────── */}
-      <g>
-        <SketchLine
-          x1={RAIL[0][0]}
-          y1={RAIL[0][1]}
-          x2={RAIL[1][0]}
-          y2={RAIL[1][1]}
-          seed={137}
-          amp={1.4}
-          on={step >= 2}
-          stroke={C.forest}
-          width={2.4}
-          opacity={0.9}
-          delay={PINS[1].lead + 0.12}
-          duration={0.6}
-        />
-        <SketchPath d={g.sleepers} on={step >= 2} stroke={C.forest} width={1.6} opacity={0.65} delay={PINS[1].lead + 0.3} duration={0.4} />
-      </g>
-
-      {/* ── 03 · highway: dual carriageway heading for the centre ───────────── */}
-      <g>
-        <SketchPath d={g.highwayL} on={step >= 3} stroke={C.forest} width={2.2} opacity={0.9} delay={PINS[2].lead + 0.12} duration={0.62} />
-        <SketchPath d={g.highwayR} on={step >= 3} stroke={C.forest} width={2.2} opacity={0.9} delay={PINS[2].lead + 0.18} duration={0.62} />
-        <SketchPath d={g.highwayMarks} on={step >= 3} stroke={C.forest} width={1.6} opacity={0.55} delay={PINS[2].lead + 0.38} duration={0.34} />
-      </g>
-
-      {/* ── 04 · eco park: a hatched parcel next door ───────────────────────── */}
-      <g>
-        <SketchEllipse
-          cx={PARK.cx}
-          cy={PARK.cy}
-          rx={PARK.rx}
-          ry={PARK.ry}
-          seed={199}
-          on={step >= 4}
-          stroke={C.forest}
-          width={2.2}
-          opacity={0.9}
-          delay={PINS[3].lead + 0.12}
-          duration={0.7}
-        />
-        <HatchWipe
-          x={PARK_HATCH.x}
-          y={PARK_HATCH.y}
-          w={PARK_HATCH.w}
-          h={PARK_HATCH.h}
-          on={step >= 4}
-          gap={13}
-          seed={211}
-          stroke={C.forest}
-          width={1.5}
-          opacity={0.3}
-          delay={PINS[3].lead + 0.3}
-          duration={0.6}
-        />
-      </g>
-
-      {/* ── badges and names, always last so nothing draws over them ────────── */}
-      {PINS.map((p, i) => (
-        <g key={`pin-${i}`}>
-          <PinBadge
-            at={p.at}
-            n={String(i + 1).padStart(2, "0")}
-            on={step >= i + 1}
-            delay={p.lead + 0.48}
-            seed={p.seed + 4}
+      {/* ── routes: drawn out of the node, then a gold overlay for the focus ──*/}
+      {POIS.map((p, i) => (
+        <g key={`route-${i}`}>
+          <motion.path
+            d={curve(p.route)}
+            fill="none"
+            stroke={V.emerald}
+            strokeWidth={5}
+            strokeLinecap="round"
+            initial={false}
+            animate={{
+              pathLength: step >= 2 ? 1 : 0,
+              opacity: step < 2 ? 0 : focus && i !== 0 ? 0.26 : 1,
+            }}
+            transition={{ duration: 0.62, ease: EASE, delay: step >= 2 ? i * 0.09 : 0 }}
           />
-          <Annotation
-            x={p.label[0]}
-            y={p.label[1]}
-            text={t(pins[i].t, lang)}
-            on={step >= i + 1}
-            color={C.ink2}
-            size={21}
-            anchor={p.anchor}
-            delay={p.lead + 0.6}
-          />
+          {i === 0 && (
+            // A second path rather than a stroke tween: paint properties are not
+            // compositor-safe, pathLength is.
+            <motion.path
+              d={curve(p.route)}
+              fill="none"
+              stroke={V.gold}
+              strokeWidth={6}
+              strokeLinecap="round"
+              initial={false}
+              animate={{ pathLength: focus ? 1 : 0, opacity: focus ? 1 : 0 }}
+              transition={{ duration: 0.66, ease: EASE }}
+            />
+          )}
         </g>
       ))}
+
+      {/* ── the node ─────────────────────────────────────────────────────────*/}
+      <g transform={`translate(${HUB_C.x} ${HUB_C.y})`}>
+        <motion.g
+          initial={false}
+          animate={{ scale: step >= 0 ? 1 : 0.82, opacity: step >= 0 ? 1 : 0 }}
+          transition={{ duration: 0.62, ease: EASE, delay: 0.16 }}
+        >
+          <rect
+            x={-HUB.w / 2}
+            y={-HUB.h / 2}
+            width={HUB.w}
+            height={HUB.h}
+            rx={HUB.r}
+            fill={V.emerald}
+          />
+          <rect
+            x={-HUB.w / 2 + 9}
+            y={-HUB.h / 2 + 9}
+            width={HUB.w - 18}
+            height={HUB.h - 18}
+            rx={HUB.r - 9}
+            fill="none"
+            stroke="rgba(255,255,255,0.34)"
+            strokeWidth={1.8}
+          />
+          {/* 31 px, not the display scale's 34: `Сергели Сити` sets ~11%
+              wider than `Sergeli City` and `<text>` cannot wrap, so the
+              Cyrillic form is what sizes this. */}
+          <text
+            y={-4}
+            textAnchor="middle"
+            fill={V.paper}
+            className="font-display"
+            fontSize={31}
+            fontWeight={600}
+            letterSpacing="-0.01em"
+          >
+            {t(S.brand.project, lang)}
+          </text>
+          <rect x={-28} y={18} width={56} height={4} rx={2} fill={V.lime} />
+        </motion.g>
+      </g>
+
+      {/* ── discs ────────────────────────────────────────────────────────────*/}
+      {POIS.map((p, i) => {
+        const on = step >= 1;
+        const dim = focus && i !== 0;
+        return (
+          <g key={`poi-${i}`} transform={`translate(${p.at[0]} ${p.at[1]})`}>
+            <motion.g
+              initial={false}
+              animate={{
+                scale: on ? 1 : 1.25,
+                opacity: on ? (dim ? 0.34 : 1) : 0,
+              }}
+              transition={{ duration: 0.44, ease: EASE, delay: on && step === 1 ? i * 0.08 : 0 }}
+            >
+              {/* Static shadow, pre-drawn as a solid disc — never a filter. */}
+              <circle cx={0} cy={7} r={DISC_R} fill="rgba(10,31,20,0.10)" />
+              <circle r={DISC_R} fill={i === 0 && focus ? V.gold : V.forest} />
+              <Icon kind={p.icon} />
+              {/* index tab, so the disc keys to the numbered list on the slide */}
+              <g transform={`translate(${DISC_R - 10} ${-DISC_R + 4})`}>
+                <circle r={17} fill={V.lime} />
+                <text
+                  y={6}
+                  textAnchor="middle"
+                  className="tnum font-mono"
+                  fontSize={17}
+                  fill={V.ink}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </text>
+              </g>
+            </motion.g>
+
+            {/* focus ring — scale only, drawn on top of everything */}
+            {i === 0 && (
+              <motion.circle
+                r={DISC_R + 16}
+                fill="none"
+                stroke={V.gold}
+                strokeWidth={3}
+                initial={false}
+                animate={{ scale: focus ? 1 : 0.72, opacity: focus ? 0.85 : 0 }}
+                transition={{ duration: 0.5, ease: EASE, delay: focus ? 0.14 : 0 }}
+              />
+            )}
+
+            {/* ── name plate ─────────────────────────────────────────────────*/}
+            <motion.g
+              initial={false}
+              animate={{
+                opacity: step >= 3 ? (dim ? 0.4 : 1) : 0,
+                y: step >= 3 ? 0 : 12,
+              }}
+              transition={{ duration: 0.44, ease: EASE, delay: step === 3 ? i * 0.07 : 0 }}
+            >
+              <foreignObject
+                x={-PLATE_W / 2}
+                y={DISC_R + 16}
+                width={PLATE_W}
+                height={PLATE_H}
+              >
+                <div
+                  style={{
+                    textAlign: "center",
+                    fontSize: 22,
+                    lineHeight: 1.24,
+                    fontWeight: 500,
+                    letterSpacing: "-0.01em",
+                    color: V.ink,
+                  }}
+                >
+                  {t(pins[i].t, lang)}
+                  <div
+                    className="font-mono"
+                    style={{
+                      marginTop: 9,
+                      fontSize: 16,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: i === 0 ? V.gold : V.emerald,
+                    }}
+                  >
+                    {t(pins[i].d, lang)}
+                  </div>
+                </div>
+              </foreignObject>
+            </motion.g>
+          </g>
+        );
+      })}
     </svg>
   );
 }

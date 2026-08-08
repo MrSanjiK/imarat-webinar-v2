@@ -1,62 +1,57 @@
 "use client";
 
-import { useId, useMemo } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { EASE } from "@/deck/types";
 import { t } from "@/content/i18n";
 import { useLang } from "@/content/lang";
 import { S } from "@/content/strings";
 import { N } from "@/content/figures";
-import {
-  Annotation,
-  C,
-  SketchArrow,
-  SketchEllipse,
-  SketchPath,
-  hatch,
-  rng,
-  wobbleLine,
-  wobbleRect,
-} from "@/ui/sketch";
+import { V } from "@/ui/vivid";
 
 /**
- * Vibrodynamic test — chapter 1 ("Zilzila"), dark theme, slot 1000×230.
+ * VibroOverlay — chapter 1 (dark), slide 09 "Sunʼiy zilzila". Slot 1000 × 230.
  *
- * An accelerogram, drawn as the instrument would draw it: exciter on the left,
- * the pen running away to the right, the MSK 8–9 demand band hatched across the
- * chart so the eye can see the record reach it. The trace is a strokeDashoffset
- * reveal gated on `step` — deliberately *not* slaved to `video.currentTime`,
- * which would couple the drawing to playback state and make going backwards
- * render something the forward pass never showed.
+ * An accelerogram drawn the way the instrument draws it: exciter on the left,
+ * the pen running away to the right, the MSK 8–9 demand band across the chart
+ * so the eye can watch the record reach it.
  *
- * Step choreography (the slot is not wrapped in a <Reveal>, so all gating lives
- * here; the slide has 4 steps).
+ * v2 "IMARAT Vivid": flat vector. The band is a solid emerald/gold plate wiped
+ * in under a clip rect, the trace is a bold 3 px stroke revealed by
+ * strokeDashoffset, the sensor pulses in emerald, and the verdict lands as a
+ * bold emerald chip.
+ *
+ * VIDEO SYNC — the interface is unchanged. `step` is the only required prop and
+ * it alone gates every build, exactly as today. `videoTime` stays optional: if
+ * a caller feeds the playing clip's current time, a live playhead cursor rides
+ * the trace on rAF; with nothing passed (today's call site) the diagram is a
+ * pure function of `step` and renders identically.
+ *
+ * Step map (slide q-vibro has 4 steps, 0…3; the slot is NOT inside a <Reveal>,
+ * so all gating lives here)
  *   0 — empty.
  *   1 — the instrument: both axes, the zero datum, the MSK 8 and MSK 9
- *       envelopes, tick marks and axis labels.
- *   2 — the test: the demand band hatches in, the exciter fires, and the pen
- *       runs the full width over ~1.9 s. The peak is marked and labelled as the
- *       accelerometer's reading.
- *   3 — "SINOVDAN OʻTDI" lands across the tail, rubber-stamped at 4°.
+ *       envelopes, graduations and axis labels.
+ *   2 — the test. The demand band plates in, the exciter fires (its arrows
+ *       pulse), and the pen runs the full width over ~1.9 s. The peak is ringed
+ *       and labelled as the accelerometer's reading.
+ *   3 — the verdict: a bold emerald chip lands across the tail with
+ *       scale 1.25 → 1 and a 4° rotation.
  *
- * Pure function of `step`; no timers, no rAF, no state. Only transform,
- * opacity and strokeDashoffset animate.
+ * Only transform / opacity / strokeDashoffset / clip-path animate.
  */
 
-// ── Beats ────────────────────────────────────────────────────────────────────
+// ── beats ────────────────────────────────────────────────────────────────────
 
 const AT_FRAME = 1;
 const AT_TRACE = 2;
 const AT_STAMP = 3;
 
-// ── Palette on dark ──────────────────────────────────────────────────────────
+const BASE = "rgba(244,251,244,0.9)";
+const DIM = "rgba(244,251,244,0.35)";
+const MID = "rgba(244,251,244,0.6)";
 
-const PAPER = "rgba(244,241,234,0.86)";
-const PAPER_DIM = "rgba(244,241,234,0.4)";
-const ACC = C.leaf; // matches tone.ACCENT.dark, which the slide's legend uses
-const GRID = "rgba(244,241,234,0.3)";
-
-// ── Chart frame ──────────────────────────────────────────────────────────────
+// ── chart frame ──────────────────────────────────────────────────────────────
 
 const BASE_Y = 120; // zero acceleration
 const AXIS_X = 62;
@@ -73,39 +68,35 @@ const A_PEAK = 58;
 /** Hard ceiling on the opposite excursion, so the pen never touches the frame. */
 const A_LIMIT = 68;
 
-const AXIS_V = wobbleLine(AXIS_X, AXIS_TOP, AXIS_X, AXIS_BOT, 11, 1.2);
-const AXIS_H = wobbleLine(AXIS_X, AXIS_BOT, PLOT_X1 + 6, AXIS_BOT, 12, 1.2);
-const DATUM = wobbleLine(AXIS_X, BASE_Y, PLOT_X1, BASE_Y, 13, 1);
+const AXIS_V = `M ${AXIS_X} ${AXIS_TOP} V ${AXIS_BOT}`;
+const AXIS_H = `M ${AXIS_X} ${AXIS_BOT} H ${PLOT_X1 + 6}`;
+const DATUM = `M ${AXIS_X} ${BASE_Y} H ${PLOT_X1}`;
 
-const envelope = (a: number, seed: number) =>
-  [
-    wobbleLine(AXIS_X, BASE_Y - a, PLOT_X1, BASE_Y - a, seed, 0.9),
-    wobbleLine(AXIS_X, BASE_Y + a, PLOT_X1, BASE_Y + a, seed + 1, 0.9),
-  ].join(" ");
+const envelope = (a: number) =>
+  `M ${AXIS_X} ${BASE_Y - a} H ${PLOT_X1} M ${AXIS_X} ${BASE_Y + a} H ${PLOT_X1}`;
 
-const ENV_HI = envelope(A_MSK_HI, 21);
-const ENV_LO = envelope(A_MSK_LO, 31);
+const ENV_HI = envelope(A_MSK_HI);
+const ENV_LO = envelope(A_MSK_LO);
 
 /** Time graduations under the axis, plus amplitude stubs beside it. */
 const TICKS = (() => {
   const parts: string[] = [];
   const stepX = (PLOT_X1 - PLOT_X0) / 10;
   for (let i = 0; i <= 10; i++) {
-    const x = PLOT_X0 + i * stepX;
-    parts.push(wobbleLine(x, AXIS_BOT, x, AXIS_BOT + 7, 200 + i, 0.5));
+    const x = Math.round(PLOT_X0 + i * stepX);
+    parts.push(`M ${x} ${AXIS_BOT} V ${AXIS_BOT + 8}`);
   }
   for (const a of [A_MSK_LO, A_MSK_HI]) {
-    parts.push(wobbleLine(AXIS_X - 7, BASE_Y - a, AXIS_X, BASE_Y - a, 300 + a, 0.5));
-    parts.push(wobbleLine(AXIS_X - 7, BASE_Y + a, AXIS_X, BASE_Y + a, 400 + a, 0.5));
+    parts.push(`M ${AXIS_X - 8} ${BASE_Y - a} H ${AXIS_X}`);
+    parts.push(`M ${AXIS_X - 8} ${BASE_Y + a} H ${AXIS_X}`);
   }
   return parts.join(" ");
 })();
 
 /** The shaker, straddling the datum where the pen starts. */
 const EXCITER_X = 85;
-const EXCITER = wobbleRect(70, 104, 30, 32, 61, 1, 1.5);
 
-// ── The record ───────────────────────────────────────────────────────────────
+// ── the record ───────────────────────────────────────────────────────────────
 
 /**
  * How many seconds of shaking the chart stands for. Only used to decide how
@@ -118,20 +109,21 @@ const STEPS = 360;
 /**
  * Chosen, not arbitrary: with this seed the record's strongest excursion is the
  * *upward* one and it lands at ~38 % of the chart — clear of the exciter label,
- * and with the opposite excursion comfortably inside the frame.
+ * with the opposite excursion comfortably inside the frame.
  */
 const TRACE_SEED = 101;
 
-type Trace = { d: string; peak: [number, number] };
+type Trace = { d: string; peak: [number, number]; pts: Array<[number, number]> };
 
 /**
- * Seeded RNG × a decaying envelope, baked into one `d`. Never per-frame, never
- * `feTurbulence`: the whole point of pre-baking is that the only thing the
- * browser does at 60 fps is move a dash offset along a path it has already
- * flattened.
+ * Seeded RNG × a decaying envelope, baked into one `d` at module load. Never
+ * per-frame, never `feTurbulence`: the only thing the browser does at 60 fps is
+ * move a dash offset along a path it has already flattened.
  */
-function buildTrace(): Trace {
-  const r = rng(TRACE_SEED);
+const TRACE: Trace = (() => {
+  let s = TRACE_SEED >>> 0;
+  const r = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+
   const cycles = N.testing.vibroFrequencyHz * RECORD_S;
   const span = PLOT_X1 - PLOT_X0;
 
@@ -151,8 +143,6 @@ function buildTrace(): Trace {
     raw.push(env * wave);
   }
 
-  // Scale on the upward peak so it crosses MSK 9 by a known amount, but never
-  // let the downward swing reach the frame.
   let up = 0;
   let down = 0;
   let peakIndex = 0;
@@ -165,104 +155,170 @@ function buildTrace(): Trace {
   });
   const k = up > 0 ? Math.min(A_PEAK / up, down > 0 ? A_LIMIT / down : Infinity) : 0;
 
-  const parts: string[] = [];
-  raw.forEach((v, i) => {
-    const x = PLOT_X0 + (span * i) / STEPS;
-    const y = BASE_Y - v * k;
-    parts.push(`${i === 0 ? "M" : "L"} ${Math.round(x * 10) / 10} ${Math.round(y * 10) / 10}`);
-  });
+  const pts: Array<[number, number]> = raw.map((v, i) => [
+    Math.round((PLOT_X0 + (span * i) / STEPS) * 10) / 10,
+    Math.round((BASE_Y - v * k) * 10) / 10,
+  ]);
 
   return {
-    d: parts.join(" "),
+    d: pts.map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x} ${y}`).join(" "),
     peak: [PLOT_X0 + (span * peakIndex) / STEPS, BASE_Y - up * k],
+    pts,
   };
+})();
+
+// ── kit ──────────────────────────────────────────────────────────────────────
+
+function Draw({
+  d,
+  on,
+  stroke,
+  w = 3,
+  delay = 0,
+  dur = 0.6,
+  opacity = 1,
+  cap = "round",
+}: {
+  d: string;
+  on: boolean;
+  stroke: string;
+  w?: number;
+  delay?: number;
+  dur?: number;
+  opacity?: number;
+  cap?: "round" | "butt";
+}) {
+  return (
+    <motion.path
+      d={d}
+      fill="none"
+      stroke={stroke}
+      strokeWidth={w}
+      strokeLinecap={cap}
+      strokeLinejoin="round"
+      pathLength={1}
+      strokeDasharray={1}
+      initial={false}
+      animate={{ strokeDashoffset: on ? 0 : 1, opacity: on ? opacity : 0 }}
+      transition={{
+        strokeDashoffset: { duration: dur, ease: EASE, delay: on ? delay : 0 },
+        opacity: { duration: 0.2, delay: on ? delay : 0 },
+      }}
+    />
+  );
 }
 
-/**
- * 45° hatch revealed by sliding an oversized mask rect across the box.
- *
- * Not a `scaleX` wipe: motion writes SVG transforms as CSS with
- * `transform-box: fill-box` and falls back to a `50% 50%` origin, so a scaled
- * mask opens from the middle of the box instead of from its edge. A translate
- * is origin-independent and therefore safe.
- */
-function HatchWipe({
+/** Solid plate arriving by translating a clip rect. */
+function PlateWipe({
   x,
   y,
   w,
   h,
   on,
-  gap = 8,
-  seed = 1,
-  stroke,
-  width = 1.2,
-  opacity = 0.45,
+  fill,
   delay = 0,
-  duration = 0.6,
+  dur = 0.6,
 }: {
   x: number;
   y: number;
   w: number;
   h: number;
   on: boolean;
-  gap?: number;
-  seed?: number;
-  stroke: string;
-  width?: number;
-  opacity?: number;
+  fill: string;
   delay?: number;
-  duration?: number;
+  dur?: number;
 }) {
   const uid = useId().replace(/:/g, "");
-  const boxId = `vo-box-${uid}`;
-  const wipeId = `vo-wipe-${uid}`;
-  const d = useMemo(() => hatch(x, y, w, h, gap, 45, seed), [x, y, w, h, gap, seed]);
-
   return (
     <g>
       <defs>
-        {/* `hatch` overruns its box by design; this clips it back. */}
-        <clipPath id={boxId}>
-          <rect x={x} y={y} width={w} height={h} />
-        </clipPath>
-        <clipPath id={wipeId}>
+        <clipPath id={`vo-${uid}`}>
           <motion.rect
-            x={x - w - 4}
-            y={y - 4}
-            width={w + 8}
-            height={h + 8}
+            x={x - 1}
+            y={y - 1}
+            width={w + 2}
+            height={h + 2}
             initial={false}
-            animate={{ x: on ? w + 4 : 0 }}
-            transition={{ duration, ease: EASE, delay }}
+            animate={{ x: on ? 0 : -w - 2 }}
+            transition={{ duration: dur, ease: EASE, delay: on ? delay : 0 }}
           />
         </clipPath>
       </defs>
-      <g clipPath={`url(#${boxId})`}>
-        <g clipPath={`url(#${wipeId})`}>
-          <path d={d} fill="none" stroke={stroke} strokeWidth={width} opacity={opacity} />
-        </g>
-      </g>
+      <rect x={x} y={y} width={w} height={h} fill={fill} clipPath={`url(#vo-${uid})`} />
     </g>
   );
 }
 
+function Label({
+  x,
+  y,
+  text,
+  on,
+  color,
+  size = 16,
+  anchor = "start",
+  leader,
+  delay = 0,
+  weight = 600,
+}: {
+  x: number;
+  y: number;
+  text: string;
+  on: boolean;
+  color: string;
+  size?: number;
+  anchor?: "start" | "end" | "middle";
+  leader?: { x: number; y: number };
+  delay?: number;
+  weight?: number;
+}) {
+  return (
+    <motion.g
+      initial={false}
+      animate={{ opacity: on ? 1 : 0, y: on ? 0 : 6 }}
+      transition={{ duration: 0.34, ease: EASE, delay: on ? delay : 0 }}
+    >
+      {leader && (
+        <path
+          d={`M ${x + (anchor === "end" ? 6 : anchor === "middle" ? 0 : -6)} ${y - size * 0.34} L ${
+            leader.x
+          } ${leader.y}`}
+          fill="none"
+          stroke={color}
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          opacity={0.6}
+        />
+      )}
+      <text
+        x={x}
+        y={y}
+        fill={color}
+        fontSize={size}
+        textAnchor={anchor}
+        className="font-mono"
+        style={{ fontWeight: weight, letterSpacing: "0.06em" }}
+      >
+        {text}
+      </text>
+    </motion.g>
+  );
+}
+
 /**
- * The verdict, landing as rubber.
+ * The verdict, landing as a bold emerald chip.
  *
- * The static `translate` lives on an outer `<g>` and only scale/rotate/opacity
- * are animated on the inner one: motion writes animated SVG transforms into
+ * The static translate lives on an outer `<g>` and only scale / rotate /
+ * opacity animate on the inner one: Motion writes animated SVG transforms into
  * `style.transform`, which would otherwise override a `transform` attribute on
- * the same element and drop the stamp at the origin. With `transform-box:
- * fill-box` the inner group's own bounding-box centre is the pivot, which is
- * exactly where a stamp should pivot.
+ * the same element and drop the chip at the origin.
  */
-function PassStamp({
+function VerdictChip({
   x,
   y,
   text,
   on,
   delay = 0,
-  color = ACC,
   size = 28,
   rotate = -4,
 }: {
@@ -271,39 +327,27 @@ function PassStamp({
   text: string;
   on: boolean;
   delay?: number;
-  color?: string;
   size?: number;
   rotate?: number;
 }) {
-  const w = text.length * size * 0.66 + 44;
-  const h = size + 24;
-  const d = useMemo(() => wobbleRect(-w / 2, -h / 2, w, h, 91, 2.2, 4), [w, h]);
-
+  const w = text.length * size * 0.62 + 56;
+  const h = size + 32;
   return (
     <g transform={`translate(${x} ${y})`}>
       <motion.g
         initial={false}
-        animate={{ opacity: on ? 1 : 0, scale: on ? 1 : 1.22, rotate: on ? rotate : rotate - 5 }}
-        transition={{ duration: 0.42, ease: EASE, delay }}
+        animate={{ opacity: on ? 1 : 0, scale: on ? 1 : 1.25, rotate: on ? rotate : rotate + 6 }}
+        transition={{ duration: 0.42, ease: EASE, delay: on ? delay : 0 }}
       >
-        <path d={d} fill="none" stroke={color} strokeWidth={3} opacity={0.95} />
-        {/* The stamp lands on the decayed tail of the record, so the trace runs
-            straight through the letterforms. The box may keep its overprint —
-            that is what a rubber stamp does — but the verdict itself has to
-            survive, hence a knockout in the slide's own dark field under the
-            glyphs. */}
+        <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={h / 2} fill={V.emerald} />
         <text
           x={0}
           y={size * 0.36}
-          fill={color}
-          stroke="#1c1b19"
-          strokeWidth={7}
-          strokeLinejoin="round"
-          paintOrder="stroke"
+          fill={V.night}
           fontSize={size}
           textAnchor="middle"
           className="font-sans"
-          style={{ fontWeight: 800, letterSpacing: "0.05em" }}
+          style={{ fontWeight: 800, letterSpacing: "0.04em" }}
         >
           {text}
         </text>
@@ -312,197 +356,241 @@ function PassStamp({
   );
 }
 
-export function VibroOverlay({ step }: { step: number }) {
+/**
+ * Live playhead. Only ever active when a caller feeds `videoTime`; rAF-smoothed
+ * so a 4 Hz `timeupdate` does not make the cursor stutter. With no time
+ * supplied the hook never schedules a frame and the component stays a pure
+ * function of `step`.
+ *
+ * The target is mirrored into a ref *inside an effect*, not during render: the
+ * rAF loop needs the newest value without re-subscribing on every tick.
+ */
+function usePlayhead(videoTime: number | undefined, on: boolean) {
+  const live = videoTime !== undefined && on;
+  const [u, setU] = useState(0);
+  const target = useRef(0);
+  const raf = useRef(0);
+
+  useEffect(() => {
+    target.current =
+      videoTime === undefined ? 0 : Math.min(1, Math.max(0, (videoTime % RECORD_S) / RECORD_S));
+  }, [videoTime]);
+
+  useEffect(() => {
+    if (!live) return;
+    const tick = () => {
+      setU((prev) => prev + (target.current - prev) * 0.24);
+      raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.current);
+  }, [live]);
+
+  if (!live) return null;
+  const i = Math.min(TRACE.pts.length - 1, Math.max(0, Math.round(u * (TRACE.pts.length - 1))));
+  return TRACE.pts[i];
+}
+
+// ── diagram ──────────────────────────────────────────────────────────────────
+
+export function VibroOverlay({ step, videoTime }: { step: number; videoTime?: number }) {
   const lang = useLang();
   const q = S.quake.vibro;
-
-  const trace = useMemo(() => buildTrace(), []);
 
   const frame = step >= AT_FRAME;
   const running = step >= AT_TRACE;
   const passed = step >= AT_STAMP;
 
-  const [peakX, peakY] = trace.peak;
+  const [peakX, peakY] = TRACE.peak;
+  const head = usePlayhead(videoTime, running);
+
+  const bandH = A_MSK_HI - A_MSK_LO;
+  const bandW = PLOT_X1 - AXIS_X;
+
+  const stamp = useMemo(() => t(q.stamp, lang), [q.stamp, lang]);
 
   return (
-    <svg viewBox="0 0 1000 230" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      {/* ── Instrument frame ── */}
-      <SketchPath d={AXIS_V} on={frame} stroke={PAPER_DIM} width={1.6} duration={0.5} />
-      <SketchPath d={AXIS_H} on={frame} stroke={PAPER_DIM} width={1.6} delay={0.12} duration={0.6} />
-      <SketchPath d={DATUM} on={frame} stroke={GRID} width={1.2} delay={0.3} duration={0.5} />
-      <SketchPath d={ENV_HI} on={frame} stroke={GRID} width={1.2} delay={0.45} duration={0.5} />
-      <SketchPath d={ENV_LO} on={frame} stroke={GRID} width={1.1} opacity={0.7} delay={0.55} duration={0.5} />
-      <SketchPath d={TICKS} on={frame} stroke={PAPER_DIM} width={1.2} delay={0.6} duration={0.4} />
+    <svg viewBox="0 0 1000 230" preserveAspectRatio="xMidYMid meet" className="w-full h-full">
+      {/* ══ instrument frame ════════════════════════════════════════════════ */}
+      <Draw d={AXIS_V} on={frame} stroke={MID} w={3} dur={0.5} />
+      <Draw d={AXIS_H} on={frame} stroke={MID} w={3} delay={0.12} dur={0.6} />
+      <Draw d={DATUM} on={frame} stroke={DIM} w={2} delay={0.3} dur={0.5} />
+      <Draw d={ENV_HI} on={frame} stroke={DIM} w={2} delay={0.45} dur={0.5} />
+      <Draw d={ENV_LO} on={frame} stroke={DIM} w={2} opacity={0.7} delay={0.55} dur={0.5} />
+      <Draw d={TICKS} on={frame} stroke={DIM} w={2} delay={0.6} dur={0.4} />
 
-      {/* Axis labels. The vertical one is rotated by a static attribute on a
-          plain <g>, so nothing animated has to reason about the rotation. */}
-      <g transform={`rotate(-90 30 ${BASE_Y})`}>
-        <Annotation
-          x={30}
-          y={BASE_Y}
-          anchor="middle"
-          text={t(q.axisAmp, lang)}
-          on={frame}
-          delay={0.6}
-          size={16}
-          color={C.ash}
-        />
+      {/* Axis labels. The vertical one rotates by a static attribute on a plain
+          <g>, so nothing animated has to reason about the rotation. */}
+      <g transform={`rotate(-90 28 ${BASE_Y})`}>
+        <Label x={28} y={BASE_Y} anchor="middle" text={t(q.axisAmp, lang)} on={frame} color={MID} delay={0.6} />
       </g>
-      <Annotation
+      <Label
         x={PLOT_X1}
-        y={AXIS_BOT + 24}
+        y={AXIS_BOT + 26}
         anchor="end"
         text={t(q.axisTime, lang)}
         on={frame}
+        color={MID}
         delay={0.68}
-        size={16}
-        color={C.ash}
       />
 
       {/* MSK levels. "MSK" and "Hz" are notation, not copy — the slide's own
-          legend writes them the same way in both alphabets (01-quake.tsx). The
-          band gets one label; the two envelopes are numbered at the axis. */}
-      <Annotation
+          legend writes them the same way in both alphabets. */}
+      <Label
         x={PLOT_X1 - 6}
-        y={BASE_Y - A_MSK_HI - 10}
+        y={BASE_Y - A_MSK_HI - 12}
         anchor="end"
         text={`MSK ${N.testing.mskFrom}–${N.testing.mskTo}`}
         on={frame}
+        color={V.gold}
+        size={16}
         delay={0.7}
-        size={15}
-        color={C.ash}
+        weight={700}
       />
-      <Annotation
-        x={AXIS_X - 10}
+      <Label
+        x={AXIS_X - 12}
         y={BASE_Y - A_MSK_HI + 5}
         anchor="end"
         text={String(N.testing.mskTo)}
         on={frame}
+        color={MID}
+        size={15}
         delay={0.76}
-        size={14}
-        color={C.ash}
       />
-      <Annotation
-        x={AXIS_X - 10}
+      <Label
+        x={AXIS_X - 12}
         y={BASE_Y - A_MSK_LO + 5}
         anchor="end"
         text={String(N.testing.mskFrom)}
         on={frame}
+        color={MID}
+        size={15}
         delay={0.8}
-        size={14}
-        color={C.ash}
       />
-      <Annotation
+      <Label
         x={AXIS_X + 4}
-        y={AXIS_BOT + 24}
-        anchor="start"
+        y={AXIS_BOT + 26}
         text={`${N.testing.vibroFrequencyHz} Hz`}
         on={frame}
-        delay={0.84}
+        color={MID}
         size={15}
-        color={C.ash}
+        delay={0.84}
       />
 
-      {/* ── Demand band: everything between MSK 8 and MSK 9 ── */}
-      <HatchWipe
+      {/* ══ demand band: everything between MSK 8 and MSK 9 ═════════════════ */}
+      <PlateWipe
         x={AXIS_X}
         y={BASE_Y - A_MSK_HI}
-        w={PLOT_X1 - AXIS_X}
-        h={A_MSK_HI - A_MSK_LO}
+        w={bandW}
+        h={bandH}
         on={running}
-        seed={5}
-        stroke={C.gold}
-        opacity={0.34}
-        delay={0}
+        fill="rgba(240,178,62,0.22)"
       />
-      <HatchWipe
+      <PlateWipe
         x={AXIS_X}
         y={BASE_Y + A_MSK_LO}
-        w={PLOT_X1 - AXIS_X}
-        h={A_MSK_HI - A_MSK_LO}
+        w={bandW}
+        h={bandH}
         on={running}
-        seed={9}
-        stroke={C.gold}
-        opacity={0.34}
+        fill="rgba(240,178,62,0.22)"
         delay={0.08}
       />
 
-      {/* ── Exciter ── */}
-      <SketchPath d={EXCITER} on={running} stroke={C.gold} width={2} delay={0.15} duration={0.35} />
-      <SketchArrow
-        x1={EXCITER_X}
-        y1={BASE_Y}
-        x2={EXCITER_X}
-        y2={BASE_Y - 13}
-        on={running}
-        stroke={C.gold}
-        width={1.8}
-        head={6}
-        seed={71}
-        delay={0.3}
-        duration={0.18}
-      />
-      <SketchArrow
-        x1={EXCITER_X}
-        y1={BASE_Y}
-        x2={EXCITER_X}
-        y2={BASE_Y + 13}
-        on={running}
-        stroke={C.gold}
-        width={1.8}
-        head={6}
-        seed={72}
-        delay={0.34}
-        duration={0.18}
-      />
-      <Annotation
-        x={68}
+      {/* ══ exciter ═════════════════════════════════════════════════════════ */}
+      <motion.g
+        initial={false}
+        animate={{ scale: running ? 1 : 1.25, opacity: running ? 1 : 0 }}
+        transition={{ duration: 0.35, ease: EASE, delay: running ? 0.15 : 0 }}
+      >
+        {/* The block is centred on (EXCITER_X, BASE_Y), so motion's fill-box
+            default already pops it about the shaker's own axis. */}
+        <rect x={EXCITER_X - 16} y={BASE_Y - 18} width={32} height={36} rx={6} fill={V.gold} />
+      </motion.g>
+      {/* The shaker firing: one scaleY pulse per direction, transform only. */}
+      {[-1, 1].map((s) => (
+        <motion.g
+          key={s}
+          initial={false}
+          animate={{ scaleY: running ? [0.5, 1.25, 0.5] : 0.5, opacity: running ? 1 : 0 }}
+          transition={{
+            scaleY: running
+              ? { duration: 0.55, ease: "easeInOut", repeat: Infinity, delay: s === -1 ? 0.3 : 0.42 }
+              : { duration: 0.2 },
+            opacity: { duration: 0.25, delay: running ? 0.3 : 0 },
+          }}
+          // Each arrow must stretch AWAY from the shaker, so it pivots on the
+          // edge of its own box nearest BASE_Y. motion sets
+          // `transform-box: fill-box` on animated SVG, so that edge is 0% for
+          // the arrow below and 100% for the one above.
+          style={{ transformOrigin: s === 1 ? "50% 0%" : "50% 100%" }}
+        >
+          <path
+            d={`M ${EXCITER_X} ${BASE_Y + s * 20} L ${EXCITER_X - 7} ${BASE_Y + s * 30} M ${EXCITER_X} ${
+              BASE_Y + s * 20
+            } L ${EXCITER_X + 7} ${BASE_Y + s * 30} M ${EXCITER_X} ${BASE_Y + s * 18} V ${BASE_Y + s * 32}`}
+            fill="none"
+            stroke={V.gold}
+            strokeWidth={3}
+            strokeLinecap="round"
+          />
+        </motion.g>
+      ))}
+      <Label
+        x={62}
         y={26}
         text={t(q.exciterLabel, lang)}
         on={running}
-        delay={0.4}
+        color={V.gold}
         size={16}
-        color={C.gold}
-        leader={{ x: EXCITER_X, y: 99 }}
-        seed={73}
+        leader={{ x: EXCITER_X, y: BASE_Y - 22 }}
+        delay={0.4}
       />
 
-      {/* ── The record ── */}
-      <SketchPath
-        d={trace.d}
-        on={running}
-        stroke={PAPER}
-        width={1.6}
-        delay={0.45}
-        duration={1.9}
-        cap="butt"
-      />
+      {/* ══ the record ══════════════════════════════════════════════════════ */}
+      <Draw d={TRACE.d} on={running} stroke={BASE} w={3} delay={0.45} dur={1.9} cap="butt" />
 
-      <SketchEllipse
-        cx={peakX}
-        cy={peakY}
-        rx={6}
-        seed={77}
-        on={running}
-        stroke={ACC}
-        width={2}
-        delay={0.95}
-        duration={0.3}
-      />
-      <Annotation
-        x={peakX + 20}
-        y={30}
+      {/* Sensor: a ringed peak with an emerald pulse. */}
+      <g transform={`translate(${peakX} ${peakY})`}>
+        <motion.g
+          initial={false}
+          animate={{ scale: running ? [0.4, 1.5] : 0.4, opacity: running ? [0.65, 0] : 0 }}
+          transition={
+            running ? { duration: 1.9, ease: EASE, repeat: Infinity, delay: 1.0 } : { duration: 0.2 }
+          }
+        >
+          <circle cx={0} cy={0} r={18} fill="none" stroke={V.leaf} strokeWidth={3} />
+        </motion.g>
+        <motion.g
+          initial={false}
+          animate={{ scale: running ? 1 : 1.25, opacity: running ? 1 : 0 }}
+          transition={{ duration: 0.35, ease: EASE, delay: running ? 0.95 : 0 }}
+        >
+          <circle cx={0} cy={0} r={8} fill={V.leaf} />
+          <circle cx={0} cy={0} r={14} fill="none" stroke={V.leaf} strokeWidth={3} />
+        </motion.g>
+      </g>
+      <Label
+        x={peakX + 22}
+        y={28}
         text={t(q.sensorLabel, lang)}
         on={running}
-        delay={1}
+        color={V.leaf}
         size={16}
-        color={ACC}
-        leader={{ x: peakX + 8, y: peakY - 10 }}
-        seed={78}
+        leader={{ x: peakX + 10, y: peakY - 16 }}
+        delay={1}
+        weight={700}
       />
 
-      {/* ── Verdict ── */}
-      <PassStamp x={762} y={BASE_Y} text={t(q.stamp, lang)} on={passed} delay={0.15} />
+      {/* Live playhead — only ever rendered when a caller feeds `videoTime`. */}
+      {head && (
+        <g transform={`translate(${head[0]} 0)`}>
+          <rect x={-1.5} y={AXIS_TOP} width={3} height={AXIS_BOT - AXIS_TOP} fill={V.leaf} opacity={0.45} />
+          <circle cx={0} cy={head[1]} r={7} fill={V.leaf} />
+        </g>
+      )}
+
+      {/* ══ verdict ═════════════════════════════════════════════════════════ */}
+      <VerdictChip x={758} y={BASE_Y} text={stamp} on={passed} delay={0.15} />
     </svg>
   );
 }

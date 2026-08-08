@@ -1,35 +1,43 @@
 "use client";
 
-import { STAGE_H, STAGE_W, type SlideProps } from "@/deck/types";
-import { Reveal, Stagger } from "@/deck/Reveal";
+import { motion } from "motion/react";
+import { EASE, type SlideProps } from "@/deck/types";
+import { Reveal } from "@/deck/Reveal";
 import { useLang } from "@/content/lang";
-import { t, num, soum, usd } from "@/content/i18n";
+import { t, usd } from "@/content/i18n";
 import { S } from "@/content/strings";
 import { N } from "@/content/figures";
 import {
   At,
   Backdrop,
   Body,
-  Caption,
   Chip,
   Kicker,
   Lead,
   M,
-  Note,
   Rule,
   Slide,
-  Stat,
   Title,
 } from "@/ui/layout";
-import { C, Counter, SketchLine } from "@/ui/sketch";
+import { CountUp, Glow, Mesh, V, Wipe } from "@/ui/vivid";
 import { FloorPriceLadder } from "@/ui/diagrams/FloorPriceLadder";
 import { InstallmentVariants } from "@/ui/diagrams/InstallmentVariants";
-import { useLightbox } from "@/deck/Lightbox";
+import { ExpandCorner, useLightbox } from "@/deck/Lightbox";
 import { ChapterOpener } from "./common";
 
-/** Chapter 6 — the ask. Everything before this was argument; this chapter is
- *  arithmetic. Gold carries the money, green carries the gift, and the last
- *  slide holds one QR code and nothing else. */
+/**
+ * Chapter 6 — the ask.
+ *
+ * Everything before this was argument; this chapter is arithmetic. Gold is the
+ * money colour and it is used for nothing else here; emerald carries structure
+ * and every call to action. The slide that closes the sale holds one QR code at
+ * 500 stage pixels and nothing on top of it, because Zoom's encoder eats small
+ * dark modules and a code the room cannot scan is the whole hour wasted.
+ */
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// ── 01 · chapter opener ──────────────────────────────────────────────────────
 
 export function OfferOpen({ step }: SlideProps) {
   return (
@@ -43,224 +51,82 @@ export function OfferOpen({ step }: SlideProps) {
   );
 }
 
+// ── 02 · the framing ─────────────────────────────────────────────────────────
+
+/**
+ * Steps
+ *   0 — the gold urgency chip and the headline; the rule under it.
+ *   1 — the format chip, and the hairline that splits words from money.
+ *   2 — the number. One oversized figure, low and right, counting up.
+ */
 export function OfferIntro({ step }: SlideProps) {
-  const lang = useLang();
   const o = S.offer.intro;
 
   return (
     <Slide grid={false}>
-      <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
-        <div style={{ textAlign: "center", paddingBottom: 70 }}>
-          <Reveal at={0} step={step} y={14}>
-            <Chip color={C.gold} filled size={22}>
-              {t(o.badge, lang)}
-            </Chip>
-          </Reveal>
+      <Mesh variant="paper" />
+      <Glow x={1420} y={800} r={520} color="240,178,62" opacity={0.24} />
+      <Glow x={240} y={220} r={380} color="0,168,104" opacity={0.14} />
 
-          <Reveal at={0} step={step} y={26} delay={0.1} style={{ marginTop: 40 }}>
-            <Title size={104} align="center" style={{ maxWidth: 1400 }}>
-              {t(o.title, lang)}
-            </Title>
-          </Reveal>
-
-          <Reveal at={1} step={step} style={{ marginTop: 36 }}>
-            <Lead align="center" color={C.ash}>
-              {t(o.subtitle, lang)}
-            </Lead>
-          </Reveal>
-
-          <Reveal at={2} step={step} y={20} style={{ marginTop: 56 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 18, justifyContent: "center" }}>
-              <span style={{ fontSize: 40, fontWeight: 300, color: C.ash }}>
-                {lang === "latn" ? "narxi" : "нархи"}
-              </span>
-              <Counter
-                to={N.studio.tiers[0].usd}
-                on={step >= 2}
-                format={(v) => usd(Math.round(v))}
-                duration={1.2}
-                className="font-display"
-                style={{
-                  fontSize: 150,
-                  fontWeight: 600,
-                  letterSpacing: "-0.035em",
-                  color: C.gold,
-                  lineHeight: 1,
-                }}
-              />
-              <span style={{ fontSize: 40, fontWeight: 300, color: C.ash }}>
-                {lang === "latn" ? "dan" : "дан"}
-              </span>
-            </div>
-          </Reveal>
-        </div>
-      </div>
-    </Slide>
-  );
-}
-
-// ── price ladder ─────────────────────────────────────────────────────────────
-
-/**
- * Four price tiers, top floor first. The hero number ($9 700) is the highest
- * band on the building, so the list is deliberately read top-down — the eye
- * lands on the cheapest apartment before it reads any of the others.
- */
-export function OfferLadder({ step }: SlideProps) {
-  const lang = useLang();
-  const o = S.offer.ladder;
-  const tiers = N.studio.tiers;
-
-  return (
-    <Slide>
-      <At x={M.left} y={M.top + 20} w={620}>
-        <Reveal at={0} step={step} y={20}>
-          <Title size={70}>{t(o.title, lang)}</Title>
-        </Reveal>
-        <Reveal at={0} step={step} delay={0.12} style={{ marginTop: 26 }}>
-          <Rule w={140} color={C.gold} delay={0.18} />
-        </Reveal>
-        <Reveal at={0} step={step} delay={0.2} style={{ marginTop: 30 }}>
-          <Body size={28}>{t(o.note, lang)}</Body>
-        </Reveal>
-
-        <Reveal at={1} step={step} style={{ marginTop: 60 }}>
-          <Chip color={C.gold}>{t(o.heroNote, lang)}</Chip>
-        </Reveal>
-        <Reveal at={1} step={step} delay={0.08} style={{ marginTop: 22 }}>
-          <Stat
-            value={
-              <Counter
-                to={tiers[0].usd}
-                on={step >= 1}
-                format={(v) => usd(Math.round(v))}
-                duration={1.1}
-              />
-            }
-            label={`${N.studio.areaFrom}–${N.studio.areaTo} m² · ${t(o.floorsLabel, lang)} ${tiers[0].floors}`}
-            color={C.gold}
-            size={116}
-          />
-        </Reveal>
-      </At>
-
-      <At x={880} y={M.top} w={420}>
-        <div style={{ height: 720 }}>
-          <FloorPriceLadder step={step} />
-        </div>
-      </At>
-
-      <At x={1360} y={M.top + 10} w={400}>
-        <div style={{ display: "grid", gap: 22 }}>
-          {tiers.map((tier, i) => {
-            const hero = i === 0;
-            return (
-              <Stagger key={tier.floors} at={1} step={step} i={i} y={16} gap={0.1}>
-                <div
-                  style={{
-                    borderTop: `2px solid ${hero ? C.gold : "rgba(43,42,40,0.16)"}`,
-                    paddingTop: 16,
-                    opacity: step >= 1 + i ? 1 : 0.34,
-                    transition: "opacity 300ms",
-                  }}
-                >
-                  <div
-                    className="font-mono"
-                    style={{
-                      fontSize: 20,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      color: hero ? C.gold : C.ash,
-                    }}
-                  >
-                    {`${tier.floors} ${t(o.floorsLabel, lang)}`}
-                  </div>
-                  <div
-                    className="tnum font-display"
-                    style={{
-                      marginTop: 8,
-                      fontSize: hero ? 62 : 52,
-                      fontWeight: hero ? 600 : 400,
-                      letterSpacing: "-0.02em",
-                      color: hero ? C.gold : C.ink,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {usd(tier.usd)}
-                  </div>
-                </div>
-              </Stagger>
-            );
-          })}
-        </div>
-      </At>
-
-      <svg
-        style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}
-        width={STAGE_W}
-        height={STAGE_H}
-      >
-        <SketchLine
-          x1={800}
-          y1={M.top}
-          x2={800}
-          y2={M.bottom - 60}
-          seed={41}
-          amp={1.5}
-          on={step >= 1}
-          stroke="rgba(43,42,40,0.18)"
-          width={1.5}
-          duration={0.8}
-        />
-      </svg>
-    </Slide>
-  );
-}
-
-// ── first-day bonus ──────────────────────────────────────────────────────────
-
-export function OfferFirstDay({ step }: SlideProps) {
-  const lang = useLang();
-  const o = S.offer.firstDay;
-
-  return (
-    <Slide grid={false}>
-      {/* Paper scrim, not the component's dark default: this slide sets ink
-          text and dark chrome, and a black left ramp buried both. */}
-      <Backdrop src="/media/renders/render-016.webp" theme="paper" scrim="left" opacity={0.5} />
-
-      <At x={M.left} y={M.top + 70} w={820} z={10}>
+      <At x={M.left} y={180} w={1060}>
         <Reveal at={0} step={step} y={16}>
-          <Kicker color={C.gold}>{`${N.webinarDate.d}-${lang === "latn" ? "avgust" : "август"}, ${N.webinarDate.y}`}</Kicker>
-        </Reveal>
-        <Reveal at={0} step={step} y={24} delay={0.08} style={{ marginTop: 24 }}>
-          <Title size={88}>{t(o.title, lang)}</Title>
-        </Reveal>
-        <Reveal at={1} step={step} style={{ marginTop: 36 }}>
-          <Body size={32}>{t(o.body, lang)}</Body>
+          <Chip color={V.gold} filled size={22}>
+            {o.badge}
+          </Chip>
         </Reveal>
 
-        <Reveal at={2} step={step} y={22} style={{ marginTop: 52 }}>
+        {/* Unbounded is very wide and Cyrillic runs ~15% wider again, so the
+            measure is set to hold this headline at two lines in both alphabets
+            — a third line would cross the fold the price sits under. */}
+        <Reveal at={0} step={step} y={26} delay={0.08} style={{ marginTop: 36 }}>
+          <Title size={58} style={{ maxWidth: 1040, letterSpacing: "-0.025em" }}>
+            {o.title}
+          </Title>
+        </Reveal>
+
+        <Reveal at={0} step={step} delay={0.22} style={{ marginTop: 34 }}>
+          <Rule w={196} color={V.gold} thickness={5} delay={0.28} />
+        </Reveal>
+
+        <Reveal at={1} step={step} y={14} style={{ marginTop: 34 }}>
+          <Chip color={V.emerald} size={22}>
+            {o.subtitle}
+          </Chip>
+        </Reveal>
+      </At>
+
+      {/* The fold: words above it, the money below. */}
+      <At x={M.left} y={576} w={M.width}>
+        <Rule on={step >= 1} w={M.width} color="rgba(10,31,20,0.12)" thickness={2} delay={0.1} />
+      </At>
+
+      {/* Right-aligned so the oversized figure lands on the same optical edge
+          as the deck's right margin instead of floating in the middle. */}
+      <At x={M.left} y={618} w={M.width} style={{ textAlign: "right" }}>
+        <Reveal at={2} step={step} y={18}>
+          <Kicker color={V.gold} size={22} style={{ textAlign: "right" }}>
+            {S.offer.ladder.heroNote}
+          </Kicker>
+        </Reveal>
+        <Reveal at={2} step={step} y={30} delay={0.1} style={{ marginTop: 24 }}>
           <div
+            className="font-display"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 24,
-              border: `2.5px solid ${C.forest}`,
-              borderRadius: 14,
-              padding: "26px 40px",
-              background: "rgba(244,241,234,0.72)",
+              fontSize: 208,
+              lineHeight: 1,
+              fontWeight: 700,
+              letterSpacing: "-0.05em",
+              color: V.gold,
+              whiteSpace: "nowrap",
             }}
           >
-            <span
-              className="font-display"
-              style={{ fontSize: 56, fontWeight: 600, color: C.forest, lineHeight: 1 }}
-            >
-              {t(o.badge, lang)}
-            </span>
-            <span style={{ fontSize: 30, fontWeight: 300, color: C.ink2 }}>
-              {lang === "latn" ? "— sovgʻa" : "— совға"}
-            </span>
+            <CountUp
+              to={N.studio.tiers[0].usd}
+              on={step >= 2}
+              duration={1.25}
+              delay={0.12}
+              format={(v) => usd(v)}
+            />
           </div>
         </Reveal>
       </At>
@@ -268,176 +134,183 @@ export function OfferFirstDay({ step }: SlideProps) {
   );
 }
 
-// ── instalments ──────────────────────────────────────────────────────────────
+// ── 03 · price ladder ────────────────────────────────────────────────────────
 
 /**
- * Two columns, two ways to pay. Variant B is the one with the discount, so it
- * gets the gold border and lands one step after A — the audience compares
- * rather than chooses blind.
+ * The diagram owns this slide; the left column is a caption for it.
+ *
+ * Steps
+ *   0 — title, rule, the "price depends on the floor" line.
+ *   1 — the section builds bottom-up; the studio area chip lands.
+ *   2 — floors 13–16 light gold and $9 700 counts up. The hero.
+ *   3 — floors 9–12.
+ *   4 — floors 4–8, then 2–3.
+ */
+export function OfferLadder({ step }: SlideProps) {
+  const o = S.offer.ladder;
+
+  return (
+    <Slide>
+      <Glow x={200} y={860} r={400} color="240,178,62" opacity={0.16} />
+
+      <At x={M.left} y={186} w={520}>
+        <Reveal at={0} step={step} y={20}>
+          <Title size={48} style={{ maxWidth: 500, letterSpacing: "-0.02em" }}>
+            {o.title}
+          </Title>
+        </Reveal>
+        <Reveal at={0} step={step} delay={0.14} style={{ marginTop: 30 }}>
+          <Rule w={166} color={V.gold} thickness={5} delay={0.2} />
+        </Reveal>
+        <Reveal at={0} step={step} delay={0.24} style={{ marginTop: 32 }}>
+          <Body size={26} style={{ maxWidth: 470 }}>
+            {o.note}
+          </Body>
+        </Reveal>
+
+        <Reveal at={1} step={step} y={14} style={{ marginTop: 46 }}>
+          <Chip color={V.emerald} size={21}>
+            {`${N.studio.areaFrom}–${N.studio.areaTo} m²`}
+          </Chip>
+        </Reveal>
+      </At>
+
+      <At x={740} y={142}>
+        <FloorPriceLadder step={step} />
+      </At>
+    </Slide>
+  );
+}
+
+// ── 04 · first day ───────────────────────────────────────────────────────────
+
+/**
+ * Steps
+ *   0 — the date and the headline over the render.
+ *   1 — the condition.
+ *   2 — the gift, on a solid emerald slab that pops in at 1.16 → 1.
+ */
+export function OfferFirstDay({ step }: SlideProps) {
+  const lang = useLang();
+  const o = S.offer.firstDay;
+  const date = `${pad2(N.webinarDate.d)}.${pad2(N.webinarDate.m)}.${N.webinarDate.y}`;
+
+  return (
+    <Slide grid={false}>
+      <Backdrop src="/media/renders/render-016.webp" theme="paper" scrim="left" opacity={0.55} />
+      <ExpandCorner item={{ kind: "image", src: "/media/renders/render-016.webp" }} light={false} />
+
+      <At x={M.left} y={200} w={860} z={10}>
+        <Reveal at={0} step={step} y={16}>
+          <Kicker color={V.gold} size={22}>
+            {date}
+          </Kicker>
+        </Reveal>
+
+        <Reveal at={0} step={step} y={26} delay={0.08} style={{ marginTop: 26 }}>
+          <Title size={72} style={{ maxWidth: 820, letterSpacing: "-0.028em" }}>
+            {o.title}
+          </Title>
+        </Reveal>
+
+        <Reveal at={0} step={step} delay={0.22} style={{ marginTop: 34 }}>
+          <Rule w={186} color={V.gold} thickness={5} delay={0.28} />
+        </Reveal>
+
+        <Reveal at={1} step={step} style={{ marginTop: 34 }}>
+          <Body size={30} style={{ maxWidth: 780 }}>
+            {o.body}
+          </Body>
+        </Reveal>
+      </At>
+
+      {/* The gift. One oversized slab, the only saturated fill on the slide. */}
+      <At x={M.left} y={700} w={1000} z={10}>
+        <motion.div
+          initial={false}
+          animate={{ opacity: step >= 2 ? 1 : 0, scale: step >= 2 ? 1 : 1.16, y: step >= 2 ? 0 : 20 }}
+          transition={{ duration: 0.5, ease: EASE }}
+          className="font-display"
+          style={{
+            display: "inline-block",
+            transformOrigin: "left center",
+            background: V.emerald,
+            color: V.paper,
+            borderRadius: 34,
+            padding: "34px 54px 38px",
+            fontSize: 68,
+            lineHeight: 1,
+            fontWeight: 700,
+            letterSpacing: "-0.03em",
+            whiteSpace: "nowrap",
+            boxShadow: "0 30px 72px rgba(10,31,20,0.24)",
+          }}
+        >
+          {t(o.badge, lang)}
+        </motion.div>
+      </At>
+    </Slide>
+  );
+}
+
+// ── 05 · instalments ─────────────────────────────────────────────────────────
+
+/**
+ * Steps
+ *   0 — title and the empty rails of both plans.
+ *   1 — variant 1 fills: down payment, forty months, the monthly figure.
+ *   2 — variant 2 fills in gold — bigger down payment, smaller month.
+ *   3 — the −10% chip drops and the discounted total lands; the bonus chip
+ *       arrives with it.
  */
 export function OfferInstallments({ step }: SlideProps) {
-  const lang = useLang();
   const o = S.offer.installments;
 
   return (
     <Slide>
-      <At x={M.left} y={M.top - 10} w={900}>
+      <Glow x={1560} y={880} r={420} color="240,178,62" opacity={0.16} />
+
+      <At x={M.left} y={116} w={900}>
         <Reveal at={0} step={step} y={18}>
-          <Title size={66}>{t(o.title, lang)}</Title>
+          <Title size={48} style={{ maxWidth: 860, letterSpacing: "-0.022em" }}>
+            {o.title}
+          </Title>
         </Reveal>
-        <Reveal at={0} step={step} delay={0.12} style={{ marginTop: 24 }}>
-          <Rule w={130} color={C.gold} delay={0.18} />
-        </Reveal>
-      </At>
-
-      <At x={M.left} y={318} w={1600}>
-        <div style={{ height: 64 }}>
-          <InstallmentVariants step={step} />
-        </div>
-      </At>
-
-      <At x={M.left} y={420} w={760}>
-        <Reveal at={1} step={step} y={22}>
-          <PlanCard
-            label={t(o.v1, lang)}
-            downLabel={t(o.downLabel, lang)}
-            down={soum(N.plans.a.down, lang)}
-            terms={N.plans.a.terms.map((x) => ({
-              months: `${x.months} ${t(o.monthsLabel, lang)}`,
-              monthly: `${soum(x.monthly, lang)} / ${t(o.monthlyLabel, lang)}`,
-            }))}
-            or={t(o.or, lang)}
-          />
+        <Reveal at={0} step={step} delay={0.14} style={{ marginTop: 26 }}>
+          <Rule w={172} color={V.gold} thickness={5} delay={0.2} />
         </Reveal>
       </At>
 
-      <At x={1000} y={420} w={760}>
-        <Reveal at={2} step={step} y={22}>
-          <PlanCard
-            accent
-            label={t(o.v2, lang)}
-            badge={`−${Math.round(N.plans.b.discount * 100)}% ${t(o.discountLabel, lang)}`}
-            downLabel={t(o.downLabel, lang)}
-            down={soum(N.plans.b.down, lang)}
-            terms={N.plans.b.terms.map((x) => ({
-              months: `${x.months} ${t(o.monthsLabel, lang)}`,
-              monthly: `${soum(x.monthly, lang)} / ${t(o.monthlyLabel, lang)}`,
-            }))}
-            or={t(o.or, lang)}
-            total={`${t(o.totalLabel, lang)} — ${num(N.plans.b.total)} ${lang === "latn" ? "soʻm" : "сўм"}`}
-          />
+      <At x={1120} y={126} w={640}>
+        <Reveal at={3} step={step} y={14} style={{ textAlign: "right" }}>
+          <Chip color={V.emerald} filled size={22}>
+            {o.bonus}
+          </Chip>
         </Reveal>
       </At>
 
-      <At x={M.left} y={866} w={1600}>
-        <Reveal at={3} step={step} delay={0.1}>
-          <Note size={30} color={C.forest}>
-            {t(o.bonus, lang)}
-          </Note>
-        </Reveal>
+      <At x={M.left} y={300}>
+        <InstallmentVariants step={step} />
       </At>
     </Slide>
   );
 }
 
-function PlanCard({
-  label,
-  badge,
-  downLabel,
-  down,
-  terms,
-  or,
-  total,
-  accent = false,
-}: {
-  label: string;
-  badge?: string;
-  downLabel: string;
-  down: string;
-  terms: { months: string; monthly: string }[];
-  or: string;
-  total?: string;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        border: `${accent ? 2.5 : 1.5}px solid ${accent ? C.gold : "rgba(43,42,40,0.18)"}`,
-        borderRadius: 14,
-        padding: "34px 38px 32px",
-        width: 760,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-        <span
-          className="font-mono"
-          style={{
-            fontSize: 21,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: accent ? C.gold : C.ash,
-          }}
-        >
-          {label}
-        </span>
-        {badge && (
-          <Chip color={C.gold} size={19} filled>
-            {badge}
-          </Chip>
-        )}
-      </div>
-
-      <div style={{ marginTop: 22, display: "flex", alignItems: "baseline", gap: 16 }}>
-        <span style={{ fontSize: 24, fontWeight: 300, color: C.ash }}>{downLabel}</span>
-        <span
-          className="tnum font-display"
-          style={{ fontSize: 46, fontWeight: 500, color: C.ink, letterSpacing: "-0.02em" }}
-        >
-          {down}
-        </span>
-      </div>
-
-      <div style={{ marginTop: 26, display: "grid", gap: 14 }}>
-        {terms.map((x, i) => (
-          <div key={i}>
-            {i > 0 && (
-              <div
-                className="font-mono"
-                style={{ fontSize: 18, color: C.ash, letterSpacing: "0.1em", marginBottom: 12 }}
-              >
-                {or}
-              </div>
-            )}
-            <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-              <span
-                className="tnum font-mono"
-                style={{ fontSize: 22, color: accent ? C.gold : C.forest, width: 108, flexShrink: 0 }}
-              >
-                {x.months}
-              </span>
-              <span style={{ fontSize: 29, fontWeight: 400, color: C.ink }}>{x.monthly}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {total && (
-        <div style={{ marginTop: 26, paddingTop: 20, borderTop: `1.5px solid ${C.gold}` }}>
-          <span className="tnum" style={{ fontSize: 26, fontWeight: 400, color: C.gold }}>
-            {total}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── CTA ──────────────────────────────────────────────────────────────────────
+// ── 06 · the QR ──────────────────────────────────────────────────────────────
 
 /**
- * One QR code, drawn from the build-time SVG. Zoom's encoder mangles thin dark
- * modules, so the code sits at 440 stage px on its own paper card with a wide
- * quiet zone, and the handle is printed underneath for anyone re-typing it.
+ * The slide the room photographs.
+ *
+ * Zoom re-encodes at a fraction of the stage resolution and its deblocker
+ * smears any dark module smaller than a few encoded pixels, so the code is
+ * 500 stage px on a white card with a 70 px quiet zone, ink on white, square to
+ * the frame, never rotated, and nothing — no sheen, no chip, no caption — is
+ * ever drawn over it. Everything else on the slide is text, on the left.
+ *
+ * Steps
+ *   0 — urgency chip, headline, rule.
+ *   1 — the card wipes in whole, and the line that says what is behind it.
+ *   2 — the handle in mono at 40 px, and the emerald scan chip.
  */
 export function OfferCta({ step }: SlideProps) {
   const lang = useLang();
@@ -446,102 +319,162 @@ export function OfferCta({ step }: SlideProps) {
 
   return (
     <Slide grid={false}>
-      <At x={M.left} y={M.top + 90} w={820}>
-        <Reveal at={0} step={step} y={18}>
-          <Kicker color={C.forest}>{t(S.brand.company, lang)}</Kicker>
+      <Mesh variant="paper" />
+      <Glow x={260} y={300} r={420} color="0,168,104" opacity={0.16} />
+      <Glow x={1400} y={940} r={420} color="240,178,62" opacity={0.16} />
+
+      <At x={M.left} y={206} w={820}>
+        <Reveal at={0} step={step} y={16}>
+          <Chip color={V.gold} filled size={22}>
+            {S.offer.intro.badge}
+          </Chip>
         </Reveal>
-        <Reveal at={0} step={step} y={24} delay={0.08} style={{ marginTop: 26 }}>
-          <Title size={96}>{t(o.title, lang)}</Title>
+
+        <Reveal at={0} step={step} y={26} delay={0.08} style={{ marginTop: 36 }}>
+          <Title size={76} style={{ maxWidth: 820, letterSpacing: "-0.028em" }}>
+            {o.title}
+          </Title>
         </Reveal>
-        <Reveal at={0} step={step} delay={0.2} style={{ marginTop: 32 }}>
-          <Rule w={160} color={C.forest} delay={0.26} />
+
+        <Reveal at={0} step={step} delay={0.22} style={{ marginTop: 34 }}>
+          <Rule w={206} color={V.emerald} thickness={5} delay={0.28} />
         </Reveal>
-        <Reveal at={1} step={step} style={{ marginTop: 40 }}>
-          <Body size={32}>{t(o.body, lang)}</Body>
+
+        <Reveal at={1} step={step} style={{ marginTop: 38 }}>
+          <Body size={30} style={{ maxWidth: 760 }}>
+            {o.body}
+          </Body>
         </Reveal>
-        <Reveal at={2} step={step} y={16} style={{ marginTop: 46 }}>
+
+        <Reveal at={2} step={step} y={16} style={{ marginTop: 54 }}>
           <div
             className="font-mono"
-            style={{ fontSize: 38, letterSpacing: "0.02em", color: C.forest }}
+            style={{ fontSize: 40, letterSpacing: "0.01em", color: V.emerald, whiteSpace: "nowrap" }}
           >
             {t(o.handleFallback, lang)}
           </div>
         </Reveal>
-      </At>
 
-      <At x={1104} y={224} w={640}>
-        <Reveal at={1} step={step} y={26} delay={0.12}>
-          <div
-            style={{
-              width: 560,
-              padding: 40,
-              background: "#F4F1EA",
-              border: `1.5px solid rgba(43,42,40,0.16)`,
-              borderRadius: 10,
-              cursor: "zoom-in",
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              openLightbox({ kind: "image", src: "/media/qr/telegram.svg", bg: "paper" });
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/media/qr/telegram.svg"
-              alt=""
-              draggable={false}
-              onError={(e) => {
-                e.currentTarget.style.opacity = "0";
-              }}
-              style={{ width: 480, height: 480, display: "block", margin: "0 auto" }}
-            />
-            <Caption size={24} align="center" style={{ marginTop: 26 }}>
-              {t(o.scan, lang)}
-            </Caption>
-          </div>
+        <Reveal at={2} step={step} y={14} delay={0.12} style={{ marginTop: 30 }}>
+          <Chip color={V.emerald} filled size={22}>
+            {o.scan}
+          </Chip>
         </Reveal>
       </At>
+
+      {/* 640 × 640 card, 500 px code, 70 px quiet zone on every side.
+          The card takes the QR asset's own field colour rather than pure white:
+          telegram.svg paints its background, and a white surround would put a
+          visible warm square inside a white card at 500 px — worse, it would
+          cut the quiet zone down to the asset's own margin. Matched, the quiet
+          zone is continuous and the code's contrast (#2B2A28 on #F4F1EA) is
+          still far past what any scanner needs after Zoom re-encodes it. */}
+      <Wipe
+        on={step >= 1}
+        dir="up"
+        duration={0.7}
+        style={{
+          position: "absolute",
+          left: 1120,
+          top: 196,
+          width: 640,
+          height: 640,
+          borderRadius: 36,
+          background: "#F4F1EA",
+          border: "1px solid rgba(10,31,20,0.10)",
+          boxShadow: "0 34px 84px rgba(10,31,20,0.16)",
+          cursor: "zoom-in",
+        }}
+      >
+        <div
+          style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}
+          onClick={(e) => {
+            e.stopPropagation();
+            openLightbox({ kind: "image", src: "/media/qr/telegram.svg", bg: "paper" });
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/media/qr/telegram.svg"
+            alt=""
+            draggable={false}
+            onError={(e) => {
+              e.currentTarget.style.opacity = "0";
+            }}
+            style={{ width: 500, height: 500, display: "block" }}
+          />
+        </div>
+      </Wipe>
     </Slide>
   );
 }
 
-// ── end ──────────────────────────────────────────────────────────────────────
+// ── 07 · close ───────────────────────────────────────────────────────────────
 
+/**
+ * Steps
+ *   0 — "Rahmat!" and the leaf rule, bottom-left over the render.
+ *   1 — the invitation to ask, the signature and the handle.
+ */
 export function OfferEnd({ step }: SlideProps) {
   const lang = useLang();
   const o = S.offer.end;
 
   return (
     <Slide theme="dark" grid={false}>
-      <Backdrop src="/media/renders/render-008.webp" theme="dark" scrim="full" opacity={0.3} />
+      <Backdrop src="/media/renders/render-008.webp" theme="dark" scrim="full" opacity={0.34} />
+      <Glow x={1500} y={260} r={460} color="62,214,106" opacity={0.18} />
 
-      <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", zIndex: 10 }}>
-        <div style={{ textAlign: "center", paddingBottom: 60 }}>
-          <Reveal at={0} step={step} y={26}>
-            <Title theme="dark" size={132} align="center">
-              {t(o.title, lang)}
-            </Title>
-          </Reveal>
-          <Reveal at={1} step={step} style={{ marginTop: 40 }}>
-            <Lead theme="dark" align="center" color="#CFC8BA">
-              {t(o.body, lang)}
-            </Lead>
-          </Reveal>
-          <Reveal at={1} step={step} delay={0.16} style={{ marginTop: 64 }}>
+      <At
+        x={M.left}
+        y={M.top}
+        w={1160}
+        z={10}
+        style={{
+          height: M.bottom - M.top,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-end",
+          paddingBottom: 44,
+          textShadow: "0 2px 26px rgba(5,24,16,0.6)",
+        }}
+      >
+        <Reveal at={0} step={step} y={30}>
+          <Title theme="dark" size={150} style={{ letterSpacing: "-0.045em" }}>
+            {o.title}
+          </Title>
+        </Reveal>
+
+        <Reveal at={0} step={step} delay={0.2} style={{ marginTop: 40 }}>
+          <Rule w={248} color={V.leaf} thickness={5} delay={0.26} />
+        </Reveal>
+
+        <Reveal at={1} step={step} style={{ marginTop: 42 }}>
+          <Lead theme="dark" size={40} style={{ maxWidth: 940 }}>
+            {o.body}
+          </Lead>
+        </Reveal>
+
+        <Reveal at={1} step={step} delay={0.16} style={{ marginTop: 52 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 30 }}>
             <div
               className="font-mono"
               style={{
                 fontSize: 24,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                color: "#3ED66A",
+                color: V.leaf,
               }}
             >
               {t(o.sign, lang)}
             </div>
-          </Reveal>
-        </div>
-      </div>
+            <div style={{ width: 2, height: 30, borderRadius: 2, background: "rgba(244,251,244,0.24)" }} />
+            <div className="font-mono" style={{ fontSize: 24, color: "rgba(244,251,244,0.72)" }}>
+              {t(S.offer.cta.handleFallback, lang)}
+            </div>
+          </div>
+        </Reveal>
+      </At>
     </Slide>
   );
 }

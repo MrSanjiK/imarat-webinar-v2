@@ -1,20 +1,29 @@
 "use client";
 
-import { STAGE_H, STAGE_W, type SlideProps } from "@/deck/types";
-import { Reveal, Stagger } from "@/deck/Reveal";
+import { motion } from "motion/react";
+import { EASE, type SlideProps } from "@/deck/types";
+import { Reveal } from "@/deck/Reveal";
 import { useLang } from "@/content/lang";
 import { t } from "@/content/i18n";
 import { S } from "@/content/strings";
 import { N } from "@/content/figures";
-import { At, Body, Caption, Chip, Item, Kicker, M, Rule, Slide, Title } from "@/ui/layout";
-import { C, SketchLine } from "@/ui/sketch";
+import { At, Chip, Kicker, Lead, M, Rule, Slide, Title } from "@/ui/layout";
+import { CountUp, Glow, Mesh, V } from "@/ui/vivid";
 import { BonusStack } from "@/ui/diagrams/BonusStack";
 import { FivePlusOne } from "@/ui/diagrams/FivePlusOne";
 import { VIPCard } from "@/ui/diagrams/VIPCard";
 import { ChapterOpener } from "./common";
 
-/** Chapter 4 — the investors' club. Gold is the accent here and nowhere else
- *  except the offer: it has to mean "money on the table", not "decoration". */
+/**
+ * Chapter 4 — the investors' club.
+ *
+ * Gold is this chapter's accent and appears almost nowhere else in the deck:
+ * here it has to mean "money back on the table", not decoration. Emerald does
+ * the structural work (paid, earned, drawn), gold marks the reward. Nothing
+ * fails in this chapter, so ember never appears.
+ */
+
+// ── 4.0 opener ───────────────────────────────────────────────────────────────
 
 export function VipOpen({ step }: SlideProps) {
   return (
@@ -28,235 +37,80 @@ export function VipOpen({ step }: SlideProps) {
   );
 }
 
+// ── 4.1 what the club is ─────────────────────────────────────────────────────
+
+/**
+ * Steps
+ *   0 — masthead chips and the headline, over the gold medallion.
+ *   1 — the statement, at lead size. The whole slide is three lines of type.
+ */
 export function VipIntro({ step }: SlideProps) {
   const lang = useLang();
   const v = S.vip.intro;
 
   return (
     <Slide grid={false}>
-      {/* Two blocks, both short, so the pair has to be centred in the safe area
-          rather than hung from its top — otherwise the lower third of the slide
-          is dead and the card reads as having slipped upward. */}
-      <At x={M.left} y={M.top + 176} w={720}>
-        <Reveal at={0} step={step} y={16}>
-          <Chip color={C.gold} size={20}>
-            {t(v.badge, lang)}
-          </Chip>
-        </Reveal>
-        <Reveal at={0} step={step} y={24} delay={0.08} style={{ marginTop: 32 }}>
-          <Title size={92}>{t(v.title, lang)}</Title>
-        </Reveal>
-        <Reveal at={0} step={step} delay={0.2} style={{ marginTop: 34 }}>
-          <Rule w={180} color={C.gold} thickness={3} delay={0.26} />
-        </Reveal>
-        <Reveal at={1} step={step} style={{ marginTop: 34 }}>
-          <Body size={32}>{t(v.body, lang)}</Body>
-        </Reveal>
-      </At>
+      <Mesh variant="paper" />
+      <Glow x={1700} y={250} r={520} color="240,178,62" opacity={0.24} />
 
-      <At x={1000} y={312} w={760}>
-        <div style={{ height: 470 }}>
-          <VIPCard step={step} />
-        </div>
-      </At>
-    </Slide>
-  );
-}
-
-export function VipPerks({ step }: SlideProps) {
-  const lang = useLang();
-  const v = S.vip.perks;
-
-  return (
-    <Slide>
-      <At x={M.left} y={M.top + 40} w={540}>
-        <Reveal at={0} step={step} y={20}>
-          <Title size={70}>{t(v.title, lang)}</Title>
-        </Reveal>
-        <Reveal at={0} step={step} delay={0.12} style={{ marginTop: 28 }}>
-          <Rule w={120} color={C.gold} delay={0.18} />
-        </Reveal>
-      </At>
-
-      {/* Opened up to reach the foot of the divider: at a 40 px gap the five
-          items stopped two-thirds of the way down and the rule carried on into
-          nothing. */}
-      <At x={820} y={M.top + 30} w={940}>
-        <div style={{ display: "grid", gap: 76 }}>
-          {v.items.map((p, i) => (
-            <Reveal key={i} at={i + 1} step={step} y={18} x={12}>
-              <Item n={i + 1} title={p.t} detail={p.d} color={C.gold} titleSize={36} />
-            </Reveal>
-          ))}
-        </div>
-      </At>
-
+      {/* The one oversized element: a gold medallion, cropped by the top-right
+          corner. Pure geometry — it says nothing the headline already says, and
+          it is present at every step, so it never animates at all. */}
       <svg
-        style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}
-        width={STAGE_W}
-        height={STAGE_H}
+        width={900}
+        height={900}
+        viewBox="0 0 900 900"
+        style={{ position: "absolute", left: 1310, top: -200, pointerEvents: "none" }}
+        aria-hidden
       >
-        <SketchLine
-          x1={742}
-          y1={M.top + 20}
-          x2={742}
-          y2={M.bottom - 40}
-          seed={19}
-          amp={1.5}
-          on={step >= 1}
-          stroke="rgba(43,42,40,0.18)"
-          width={1.5}
-          duration={0.8}
-        />
+        <circle cx={450} cy={450} r={300} fill={V.gold} />
+        <circle cx={450} cy={450} r={386} fill="none" stroke={V.emerald} strokeWidth={4} />
+        <circle cx={450} cy={450} r={444} fill="none" stroke={V.leaf} strokeWidth={2} opacity={0.5} />
+        <circle cx={214} cy={706} r={26} fill={V.emerald} />
       </svg>
-    </Slide>
-  );
-}
 
-export function VipCondition({ step }: SlideProps) {
-  const lang = useLang();
-  const v = S.vip.condition;
+      <At x={M.left} y={200} w={1100}>
+        <Reveal at={0} step={step} y={16}>
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+            <Chip filled size={20}>
+              {t(S.brand.project, lang)}
+            </Chip>
+            <Chip color={V.gold} size={20}>
+              {t(S.chapters.c4.title, lang)}
+            </Chip>
+            <Chip color={V.ink} size={20}>
+              {t(v.badge, lang)}
+            </Chip>
+          </div>
+        </Reveal>
 
-  return (
-    <Slide grid={false}>
-      <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
-        <div style={{ maxWidth: 1400, textAlign: "center", paddingBottom: 60 }}>
-          <Reveal at={0} step={step} y={14}>
-            <Kicker color={C.gold} style={{ textAlign: "center" }}>
-              {t(v.title, lang)}
-            </Kicker>
-          </Reveal>
+        {/* 1060 keeps the longest line clear of the medallion's outer ring,
+            which reaches x 1317 at this block's top edge. */}
+        <Reveal at={0} step={step} y={26} delay={0.08} style={{ marginTop: 40 }}>
+          <Title size={88} style={{ maxWidth: 1060, letterSpacing: "-0.025em" }}>
+            {t(v.title, lang)}
+          </Title>
+        </Reveal>
 
-          <Reveal at={1} step={step} y={24} style={{ marginTop: 42 }}>
+        <Reveal at={0} step={step} delay={0.22} style={{ marginTop: 36 }}>
+          <Rule w={196} color={V.gold} thickness={5} delay={0.28} />
+        </Reveal>
+      </At>
+
+      <At x={M.left} y={618} w={1240}>
+        <Reveal at={1} step={step} y={22}>
+          <div style={{ display: "flex", gap: 30 }}>
             <div
               style={{
-                display: "inline-block",
-                border: `2.5px solid ${C.gold}`,
-                borderRadius: 16,
-                padding: "50px 76px",
+                flexShrink: 0,
+                width: 5,
+                borderRadius: 5,
+                background: V.gold,
               }}
-            >
-              <Title size={72} align="center" style={{ maxWidth: 1080 }}>
-                {t(v.rule, lang)}
-              </Title>
-            </div>
-          </Reveal>
-
-          <Reveal at={2} step={step} style={{ marginTop: 48 }}>
-            <Body size={30} align="center" style={{ maxWidth: 900, margin: "0 auto" }}>
+            />
+            <Lead size={50} color={V.ink} style={{ maxWidth: 1160, lineHeight: 1.3 }}>
               {t(v.body, lang)}
-            </Body>
-          </Reveal>
-        </div>
-      </div>
-    </Slide>
-  );
-}
-
-export function VipBonuses({ step }: SlideProps) {
-  const lang = useLang();
-  const v = S.vip.bonuses;
-
-  return (
-    <Slide>
-      <At x={M.left} y={M.top + 40} w={560}>
-        <Reveal at={0} step={step} y={20}>
-          <Title size={70}>{t(v.title, lang)}</Title>
-        </Reveal>
-        <Reveal at={0} step={step} delay={0.12} style={{ marginTop: 28 }}>
-          <Rule w={120} color={C.gold} delay={0.18} />
-        </Reveal>
-      </At>
-
-      {/* Step 5 lights the 1+ / 2+ chips on the tiers they belong to. A margin
-          note restating the same two thresholds arrived on that very step and
-          said less than the list item sitting 40 px under the drawing. */}
-      <At x={820} y={168} w={940}>
-        <div style={{ height: 300 }}>
-          <BonusStack step={step} />
-        </div>
-      </At>
-
-      <At x={820} y={512} w={940}>
-        <div style={{ display: "grid", gap: 26 }}>
-          {v.items.map((p, i) => (
-            <Stagger key={i} at={1} step={step} i={i} y={14} gap={0.09}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 18 }}>
-                <span
-                  style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: 99,
-                    background: C.gold,
-                    flexShrink: 0,
-                  }}
-                />
-                <div style={{ fontSize: 30, fontWeight: 400, color: C.ink }}>
-                  {t(p.t, lang)}
-                  <span style={{ color: C.ash, fontWeight: 300 }}> — {t(p.d, lang)}</span>
-                </div>
-              </div>
-            </Stagger>
-          ))}
-        </div>
-      </At>
-    </Slide>
-  );
-}
-
-export function VipFivePlusOne({ step }: SlideProps) {
-  const lang = useLang();
-  const v = S.vip.fivePlusOne;
-
-  return (
-    <Slide grid={false}>
-      <At x={M.left} y={M.top + 20} w={620}>
-        <Reveal at={0} step={step} y={18}>
-          <Kicker color={C.gold}>{`${N.vip.bundleSize} + 1`}</Kicker>
-        </Reveal>
-        <Reveal at={0} step={step} y={22} delay={0.06} style={{ marginTop: 20 }}>
-          <Title size={82}>{t(v.title, lang)}</Title>
-        </Reveal>
-        <Reveal at={1} step={step} style={{ marginTop: 30 }}>
-          <Body>{t(v.body, lang)}</Body>
-        </Reveal>
-
-        <div style={{ marginTop: 52, display: "grid", gap: 24 }}>
-          <Reveal at={2} step={step} y={14}>
-            <RuleLine text={t(v.rule50, lang)} />
-          </Reveal>
-          <Reveal at={3} step={step} y={14}>
-            <RuleLine text={t(v.rule100, lang)} accent />
-          </Reveal>
-        </div>
-      </At>
-
-      <At x={880} y={168} w={880}>
-        <div style={{ height: 700 }}>
-          <FivePlusOne step={step} />
-        </div>
-      </At>
-
-      {/*
-        These three name the three things in the lower band of the drawing, so
-        they have to sit under them rather than merely near them. The diagram's
-        slot is 1:1 with the stage (880 × 700 viewBox in an 880 × 700 box), so
-        its paid gauge, discount gauge and gift are at stage x 1108 / 1332 /
-        1556 — evenly pitched 224 apart. Three 224-wide columns starting at
-        1108 − 112 put each caption dead centre under its own element; a
-        centred flex row landed them +77 / −16 / −89 off, which is close enough
-        to look like a miss rather than a decision.
-      */}
-      <At x={996} y={794} w={672}>
-        <Reveal at={3} step={step} delay={0.2}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
-            <Caption align="center">{t(v.dialPaid, lang)}</Caption>
-            <Caption align="center" color={C.gold}>
-              {t(v.dialDiscount, lang)}
-            </Caption>
-            <Caption align="center" color={C.forest}>
-              {t(v.giftLabel, lang)}
-            </Caption>
+            </Lead>
           </div>
         </Reveal>
       </At>
@@ -264,19 +118,206 @@ export function VipFivePlusOne({ step }: SlideProps) {
   );
 }
 
-function RuleLine({ text, accent = false }: { text: string; accent?: boolean }) {
+// ── 4.2 what membership buys ─────────────────────────────────────────────────
+
+/**
+ * Steps
+ *   0 — headline; the card flips in beside it.
+ *   1–5 — one perk row per click. Choreography lives in `VIPCard`.
+ */
+export function VipPerks({ step }: SlideProps) {
+  const lang = useLang();
+  const v = S.vip.perks;
+
   return (
-    <div
-      style={{
-        borderLeft: `3px solid ${accent ? C.gold : "rgba(43,42,40,0.2)"}`,
-        paddingLeft: 22,
-        fontSize: 28,
-        lineHeight: 1.4,
-        fontWeight: accent ? 400 : 300,
-        color: accent ? C.ink : C.ink,
-      }}
-    >
-      {text}
-    </div>
+    <Slide grid={false}>
+      <Mesh variant="paper" />
+      <Glow x={430} y={620} r={470} color="240,178,62" opacity={0.16} />
+
+      <At x={M.left} y={132} w={1200}>
+        <Reveal at={0} step={step} y={20}>
+          <Title size={56} style={{ letterSpacing: "-0.02em" }}>
+            {t(v.title, lang)}
+          </Title>
+        </Reveal>
+        <Reveal at={0} step={step} delay={0.12} style={{ marginTop: 22 }}>
+          <Rule w={132} color={V.gold} thickness={4} delay={0.18} />
+        </Reveal>
+      </At>
+
+      <At x={M.left} y={280}>
+        <VIPCard step={step} />
+      </At>
+    </Slide>
+  );
+}
+
+// ── 4.3 the one condition ────────────────────────────────────────────────────
+
+/**
+ * Steps
+ *   0 — the rule, set as the headline.
+ *   1 — the gold plaque: one contract a year, counted up.
+ *   2 — the plain-language restatement.
+ */
+export function VipCondition({ step }: SlideProps) {
+  const lang = useLang();
+  const v = S.vip.condition;
+
+  return (
+    <Slide grid={false}>
+      <Mesh variant="paper" />
+      <Glow x={1460} y={520} r={480} color="240,178,62" opacity={0.2} />
+
+      <At x={M.left} y={300} w={940}>
+        <Reveal at={0} step={step} y={26}>
+          <Title size={62} style={{ maxWidth: 920, letterSpacing: "-0.02em" }}>
+            {t(v.rule, lang)}
+          </Title>
+        </Reveal>
+        <Reveal at={0} step={step} delay={0.2} style={{ marginTop: 34 }}>
+          <Rule w={164} color={V.gold} thickness={5} delay={0.26} />
+        </Reveal>
+        <Reveal at={2} step={step} style={{ marginTop: 38 }}>
+          <Lead size={31} style={{ maxWidth: 860 }}>
+            {t(v.body, lang)}
+          </Lead>
+        </Reveal>
+      </At>
+
+      {/* The oversized element: a gold plaque carrying the only figure the
+          condition has. `scale` is on a motion node, not `Reveal`, so the
+          number lands with weight rather than merely fading. */}
+      <motion.div
+        initial={false}
+        animate={{
+          opacity: step >= 1 ? 1 : 0,
+          scale: step >= 1 ? 1 : 0.9,
+          y: step >= 1 ? 0 : 16,
+        }}
+        transition={{ duration: 0.52, ease: EASE }}
+        style={{
+          position: "absolute",
+          left: 1160,
+          top: 282,
+          width: 600,
+          height: 476,
+          borderRadius: 44,
+          background: V.gold,
+          boxShadow: "0 34px 82px rgba(10,31,20,0.18)",
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div
+            className="tnum font-display"
+            style={{
+              fontSize: 264,
+              lineHeight: 0.9,
+              fontWeight: 700,
+              letterSpacing: "-0.06em",
+              color: V.ink,
+            }}
+          >
+            <CountUp to={N.vip.minContractsPerYear} on={step >= 1} duration={0.7} delay={0.18} />
+          </div>
+          <div
+            className="font-mono"
+            style={{
+              marginTop: 28,
+              fontSize: 22,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "rgba(10,31,20,0.68)",
+            }}
+          >
+            {t(v.title, lang)}
+          </div>
+        </div>
+      </motion.div>
+    </Slide>
+  );
+}
+
+// ── 4.4 what the next purchase is worth ──────────────────────────────────────
+
+/**
+ * Steps
+ *   0 — headline.
+ *   1–4 — one bonus plate per click, bottom to top.
+ *   5 — the two gold thresholds light. Choreography lives in `BonusStack`.
+ */
+export function VipBonuses({ step }: SlideProps) {
+  const lang = useLang();
+  const v = S.vip.bonuses;
+
+  return (
+    <Slide grid={false}>
+      <Mesh variant="paper" />
+      <Glow x={300} y={760} r={430} color="0,168,104" opacity={0.14} />
+
+      <At x={M.left} y={252} w={440}>
+        <Reveal at={0} step={step} y={22}>
+          <Title size={52} style={{ maxWidth: 430, letterSpacing: "-0.02em" }}>
+            {t(v.title, lang)}
+          </Title>
+        </Reveal>
+        <Reveal at={0} step={step} delay={0.12} style={{ marginTop: 30 }}>
+          <Rule w={128} color={V.gold} thickness={4} delay={0.18} />
+        </Reveal>
+      </At>
+
+      <At x={680} y={210}>
+        <BonusStack step={step} />
+      </At>
+    </Slide>
+  );
+}
+
+// ── 4.5 the 5+1 offer ────────────────────────────────────────────────────────
+
+/**
+ * Steps
+ *   0 — headline and the empty apparatus.
+ *   1 — the five paid apartments draw on.
+ *   2 — the linked dial locks to the first rung.
+ *   3 — the second rung; the sixth apartment turns gold.
+ *   Choreography lives in `FivePlusOne`.
+ */
+export function VipFivePlusOne({ step }: SlideProps) {
+  const lang = useLang();
+  const v = S.vip.fivePlusOne;
+
+  return (
+    <Slide grid={false}>
+      <Mesh variant="paper" />
+      <Glow x={1220} y={560} r={520} color="240,178,62" opacity={0.16} />
+
+      <At x={M.left} y={252} w={470}>
+        <Reveal at={0} step={step} y={16}>
+          <Kicker color={V.gold} size={22}>
+            {`${N.vip.bundleSize} + ${N.vip.bundleBonusIndex - N.vip.bundleSize}`}
+          </Kicker>
+        </Reveal>
+        <Reveal at={0} step={step} y={24} delay={0.06} style={{ marginTop: 22 }}>
+          <Title size={64} style={{ maxWidth: 460, letterSpacing: "-0.025em" }}>
+            {t(v.title, lang)}
+          </Title>
+        </Reveal>
+        <Reveal at={0} step={step} delay={0.2} style={{ marginTop: 28 }}>
+          <Rule w={128} color={V.gold} thickness={4} delay={0.26} />
+        </Reveal>
+        <Reveal at={1} step={step} style={{ marginTop: 36 }}>
+          <Lead size={29} style={{ maxWidth: 450 }}>
+            {t(v.body, lang)}
+          </Lead>
+        </Reveal>
+      </At>
+
+      <At x={700} y={250}>
+        <FivePlusOne step={step} />
+      </At>
+    </Slide>
   );
 }

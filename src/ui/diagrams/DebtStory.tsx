@@ -1,403 +1,163 @@
 "use client";
 
-import { useId, useMemo } from "react";
+import { useMemo } from "react";
 import { motion } from "motion/react";
 import { EASE } from "@/deck/types";
 import { useLang } from "@/content/lang";
 import { t } from "@/content/i18n";
 import { S } from "@/content/strings";
 import { N } from "@/content/figures";
-import { C, SketchArrow, SketchPath, SketchRect, hatch, rng, wobbleLine } from "@/ui/sketch";
+import { V } from "@/ui/vivid";
 
 /**
- * DebtStory — why the $9 700 apartments exist.
+ * DebtStory — v2 "IMARAT Vivid". Bold flat vector; no pencil, no sketch kit.
  *
- * Step choreography (slide 03-ready / ReadyDebt, 5 steps):
- *   0  nothing. The title and lead are still landing above.
- *   1  the promise: a year axis plus three plan bars (payment / construction /
- *      living-while-paying) draw in left to right, staggered, each with its
- *      label and duration. Ink and ash.
- *   2  reality: a 10x10 grid of buyers fades in and 85 of them drain from a
- *      solid ink disc to a hollow ember ring, staggered 12 ms apart. The bars
- *      dim so the eye goes right. (The 220 mlrd / 85% counters live on the
- *      slide, not here — deliberately not duplicated.)
- *   3  the result: the construction bar stretches right to 2x its promised
- *      length. A dashed ash ghost marks where it used to end; the slipped tail
- *      is hatched in ember.
- *   4  today: the bar retracts partway back toward the ghost — not to it — and
- *      a forest-green trend arrow rises. Recovery, not completion.
+ * One 1600×500 board with two halves that share the slide's argument: the
+ * contract on the left (three duration bars), the people on the right (a
+ * hundred buyers as a dot grid). The eye compares a promise to its outcome
+ * without being told to.
  *
- * Pure function of `step`: no timers, no state. Backward renders what forward
- * rendered. Only transform / opacity / strokeDashoffset ever animate.
+ * Step map (03-ready / ReadyDebt, 5 steps):
+ *   0  empty board. The title is still landing above it.
+ *   1  THE PLAN. Three bars draw left→right on a shared year scale, staggered:
+ *      payment 4–4,5 y (gold — it is money), construction 2–2,5 y (ink),
+ *      living-while-paying 2–2,5 y (emerald). Each carries its figure and its
+ *      label from `S.ready.debt.planBars`.
+ *   2  THE REALITY. The bars drop to 0.42 and a 10×10 grid lands on the right.
+ *      85 of the 100 ink discs drain to hollow ember rings on a 12 ms stagger,
+ *      then the ember tally under them. The 220 mlrd counter lives on the slide
+ *      in gold — money is never ember, the default is.
+ *   3  THE RESULT. The bars come back up, the grid sits back to 0.34, and the
+ *      construction bar runs an ember tail past its plan. A dashed ash ghost
+ *      holds the promised end so the overrun is measured, not just felt.
+ *   4  TODAY. The ember tail retracts toward the ghost — toward, not to — and
+ *      an emerald trend curve rises underneath. Recovery, not completion.
+ *
+ * Pure function of `step`: no timers, no state, every `on` monotonic. Arriving
+ * backward renders exactly what arriving forward rendered. Only transform /
+ * opacity / strokeDashoffset animate — all compositor-cheap under Zoom.
  */
 
-// ── Geometry ────────────────────────────────────────────────────────────────
-const VW = 1090;
-const VH = 464;
+// ── board ───────────────────────────────────────────────────────────────────
+const W = 1600;
+const H = 500;
 
-const X0 = 60; // bar origin / axis zero
-const U = 122; // px per year
-const AXIS_Y = 54;
-const AXIS_MAX = 5.1; // years of ruled axis
-const TICKS = [1, 2, 3, 4, 5];
+/** Left half: the contract. Figure + label column, then the bars. */
+const COL_X = 40;
+const X0 = 380;
+const U = 128; // px per year
+const BAR_W = 46; // stroke width — the bars are round-capped strokes
 
-const BAR_H = 42;
-const LABEL_Y = [88, 180, 272]; // text baseline of each row
-const BAR_Y = LABEL_Y.map((y) => y + 14);
-const VALUE_X = 682; // right edge for the duration text
+/** Baseline of the figure in each row; the label sits 30 px under it. */
+const FIG_Y = [88, 218, 348];
+const BAR_Y = FIG_Y.map((y) => y + 2);
 
-// Sample-of-100 grid, right hand side.
-const G_X = 780;
-const G_Y = 76;
-const G_GAP = 30;
-const RING_R = 9.5;
-const DISC_R = 10.5;
+/** Right half: the hundred buyers. */
+const G_X = 1250;
+const G_Y = 96;
+const G_GAP = 34;
+const DISC_R = 12;
+const RING_R = 11;
 
-const YEARS = {
-  pay: N.debt.planPayYears[1],
-  build: N.debt.planBuildYears[1],
-  live: N.debt.planLiveYears[1],
-} as const;
+const YEARS = [
+  N.debt.planPayYears[1],
+  N.debt.planBuildYears[1],
+  N.debt.planLiveYears[1],
+] as const;
 
-/** Editorial, not sourced: the slip is drawn as double the promised build. */
-const STRETCHED = YEARS.build * 2;
-/** …and today it has come back about half of that overrun. */
-const RECOVERED = YEARS.build * 1.48;
+const BAR_COLOR = [V.gold, V.ink, V.emerald] as const;
 
-export function DebtStory({ step }: { step: number }) {
-  const lang = useLang();
-  const d = S.ready.debt;
+/** Editorial, not sourced: the slip is drawn as double the promised build… */
+const STRETCH = 2;
+/** …and today about half of that overrun has been given back. */
+const RECOVERED = 0.48;
 
-  const on1 = step >= 1;
-  const on2 = step >= 2;
-  const on3 = step >= 3;
-  const on4 = step >= 4;
+const DEFAULTED = Math.round(N.debt.defaultShare * 100);
 
-  // Current length of each bar, in px. Only the construction bar moves.
-  const buildLen = (on4 ? RECOVERED : on3 ? STRETCHED : YEARS.build) * U;
-  const lens = [YEARS.pay * U, buildLen, YEARS.live * U];
-  const maxLens = [YEARS.pay * U, STRETCHED * U, YEARS.live * U];
+// ── primitives ──────────────────────────────────────────────────────────────
 
-  const ghostX = X0 + YEARS.build * U;
-
-  return (
-    <svg viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="xMidYMid meet" className="w-full h-full">
-      {/* ── Plan: axis, bars, labels ─────────────────────────────────────── */}
-      <motion.g
-        initial={false}
-        animate={{ opacity: !on1 ? 0 : on2 && !on3 ? 0.5 : 1 }}
-        transition={{ duration: 0.4, ease: EASE }}
-      >
-        <YearAxis on={on1} />
-
-        {[0, 1, 2].map((i) => {
-          const delay = step === 1 ? i * 0.13 : 0;
-          return (
-            <g key={i}>
-              <motion.g
-                initial={false}
-                animate={{ opacity: on1 ? 1 : 0, x: on1 ? 0 : -10 }}
-                transition={{ duration: 0.4, ease: EASE, delay: delay + 0.06 }}
-              >
-                <text x={X0} y={LABEL_Y[i]} fontSize={27} fill={C.ink} className="font-sans">
-                  {t(d.planBars[i].t, lang)}
-                </text>
-                <text
-                  x={VALUE_X}
-                  y={LABEL_Y[i]}
-                  fontSize={26}
-                  fill={C.ash}
-                  textAnchor="end"
-                  className="font-hand tnum"
-                >
-                  {t(d.planBars[i].v, lang)}
-                </text>
-              </motion.g>
-
-              <PlanBar
-                x={X0}
-                y={BAR_Y[i]}
-                h={BAR_H}
-                maxLen={maxLens[i]}
-                len={lens[i]}
-                on={on1}
-                seed={17 + i * 31}
-                delay={delay}
-                emberFrom={i === 1 ? YEARS.build * U : undefined}
-                emberOn={on3}
-              />
-            </g>
-          );
-        })}
-
-        {/* Ghost of the promised construction end. */}
-        <Ghost x={ghostX} y={BAR_Y[1]} h={BAR_H} on={on3} />
-      </motion.g>
-
-      {/* ── Reality: 100 buyers, 85 stop paying ──────────────────────────── */}
-      <BuyerGrid step={step} />
-
-      {/* ── Today: the trend turns back up ───────────────────────────────── */}
-      {/* Slow start, then a rise — "sekinlik bilan … qaytmoqda". Sits in the
-          band under the bars, clear of the buyer grid on the right. */}
-      <SketchArrow
-        x1={120}
-        y1={446}
-        x2={640}
-        y2={374}
-        seed={71}
-        curve={18}
-        head={22}
-        on={on4}
-        stroke={C.forest}
-        width={3.2}
-        duration={0.8}
-        delay={0.2}
-      />
-    </svg>
-  );
-}
-
-// ── Year axis with faint verticals ──────────────────────────────────────────
-
-function YearAxis({ on }: { on: boolean }) {
-  const axis = useMemo(
-    () => wobbleLine(X0 - 8, AXIS_Y, X0 + AXIS_MAX * U, AXIS_Y, 5, 1.2),
-    [],
-  );
-  return (
-    <g>
-      <SketchPath d={axis} on={on} stroke={C.ash} width={1.5} opacity={0.7} duration={0.85} />
-      {TICKS.map((n) => {
-        const x = X0 + n * U;
-        return (
-          <motion.g
-            key={n}
-            initial={false}
-            animate={{ opacity: on ? 1 : 0 }}
-            transition={{ duration: 0.3, ease: EASE, delay: 0.2 + n * 0.05 }}
-          >
-            <line
-              x1={x}
-              y1={AXIS_Y}
-              x2={x}
-              y2={336}
-              stroke="rgba(43,42,40,0.13)"
-              strokeWidth={1.5}
-            />
-            <text
-              x={x}
-              y={42}
-              fontSize={20}
-              fill={C.ash}
-              textAnchor="middle"
-              className="font-mono tnum"
-            >
-              {n}
-            </text>
-          </motion.g>
-        );
-      })}
-      <motion.line
-        x1={X0}
-        y1={AXIS_Y}
-        x2={X0}
-        y2={336}
-        stroke="rgba(43,42,40,0.13)"
-        strokeWidth={1.5}
-        initial={false}
-        animate={{ opacity: on ? 1 : 0 }}
-        transition={{ duration: 0.3, ease: EASE, delay: 0.2 }}
-      />
-    </g>
-  );
-}
-
-// ── One pencil bar that can lengthen without animating `width` ──────────────
-/**
- * Geometry is baked once at `maxLen`. The visible length is driven by
- * `strokeDashoffset` on the two long edges, a `scaleX` on the hatch clip, and a
- * `translateX` on the end cap — so growing and shrinking are the same motion.
- */
-function PlanBar({
-  x,
-  y,
-  h,
-  maxLen,
-  len,
+/** A stroke that draws itself on. pathLength=1, so dashoffset runs 1 → 0. */
+function Draw({
+  d,
   on,
-  seed,
+  stroke,
+  width = 5,
   delay = 0,
-  emberFrom,
-  emberOn = false,
+  duration = 0.7,
 }: {
-  x: number;
-  y: number;
-  h: number;
-  maxLen: number;
-  len: number;
+  d: string;
   on: boolean;
-  seed: number;
+  stroke: string;
+  width?: number;
   delay?: number;
-  /** Offset from `x` where the "slipped" ember tail begins. */
-  emberFrom?: number;
-  emberOn?: boolean;
+  duration?: number;
 }) {
-  const uid = useId().replace(/:/g, "");
-  const wipeId = `bar-wipe-${uid}`;
-  const boxId = `bar-box-${uid}`;
-  const tailWipeId = `bar-tailwipe-${uid}`;
-  const tailBoxId = `bar-tailbox-${uid}`;
-
-  const g = useMemo(() => {
-    const tailX = x + (emberFrom ?? 0);
-    const tailW = Math.max(0, maxLen - (emberFrom ?? 0));
-    return {
-      top: wobbleLine(x, y, x + maxLen, y, seed + 1, 1.3),
-      bottom: wobbleLine(x, y + h, x + maxLen, y + h, seed + 2, 1.3),
-      capL: wobbleLine(x, y - 2, x, y + h + 2, seed + 3, 1.1),
-      capR: wobbleLine(x + maxLen, y - 2, x + maxLen, y + h + 2, seed + 4, 1.1),
-      ink: hatch(x, y, maxLen, h, 11, 45, seed + 5),
-      tailX,
-      tailW,
-      tail: tailW > 0 ? hatch(tailX, y, tailW, h, 8, 45, seed + 6) : "",
-    };
-  }, [x, y, h, maxLen, seed, emberFrom]);
-
-  const frac = maxLen > 0 ? len / maxLen : 0;
-  const inkLen = emberFrom != null ? Math.min(len, emberFrom) : len;
-  const tailFrac =
-    emberFrom != null && emberOn && g.tailW > 0
-      ? Math.min(1, Math.max(0, (len - emberFrom) / g.tailW))
-      : 0;
-
-  const grow = { duration: 0.75, ease: EASE, delay };
-
-  return (
-    <g>
-      <defs>
-        <clipPath id={boxId}>
-          <rect x={x} y={y} width={maxLen} height={h} />
-        </clipPath>
-        {/* Sliding mask, not scaleX: motion overwrites `transform-origin` with
-            50% 50% on SVG, so a scale wipe would open from the middle. */}
-        <clipPath id={wipeId}>
-          <motion.rect
-            x={x}
-            y={y - 4}
-            width={maxLen}
-            height={h + 8}
-            initial={false}
-            animate={{ x: (on ? inkLen : 0) - maxLen }}
-            transition={{ ...grow, delay: delay + 0.1 }}
-          />
-        </clipPath>
-        {g.tailW > 0 && (
-          <>
-            <clipPath id={tailBoxId}>
-              <rect x={g.tailX} y={y} width={g.tailW} height={h} />
-            </clipPath>
-            <clipPath id={tailWipeId}>
-              <motion.rect
-                x={g.tailX}
-                y={y - 4}
-                width={g.tailW}
-                height={h + 8}
-                initial={false}
-                animate={{ x: (tailFrac - 1) * g.tailW }}
-                transition={{ ...grow, delay: delay + 0.1 }}
-              />
-            </clipPath>
-          </>
-        )}
-      </defs>
-
-      {/* Ink hatch — the promised span. */}
-      <g clipPath={`url(#${boxId})`}>
-        <g clipPath={`url(#${wipeId})`}>
-          <path d={g.ink} fill="none" stroke={C.ink} strokeWidth={1.5} opacity={0.3} />
-        </g>
-      </g>
-
-      {/* Ember hatch — the slip. */}
-      {g.tailW > 0 && (
-        <g clipPath={`url(#${tailBoxId})`}>
-          <g clipPath={`url(#${tailWipeId})`}>
-            <path d={g.tail} fill="none" stroke={C.ember} strokeWidth={1.6} opacity={0.55} />
-          </g>
-        </g>
-      )}
-
-      {/* Long edges: dashoffset stops the stroke exactly at the current length. */}
-      <Edge d={g.top} frac={on ? frac : 0} delay={delay} />
-      <Edge d={g.bottom} frac={on ? frac : 0} delay={delay + 0.05} />
-
-      <SketchPath d={g.capL} on={on} stroke={C.ink} width={2.4} delay={delay} duration={0.3} />
-
-      {/* End cap rides the edge instead of being redrawn. */}
-      <motion.g
-        initial={false}
-        animate={{ x: on ? len - maxLen : -maxLen, opacity: on ? 1 : 0 }}
-        transition={{
-          x: grow,
-          opacity: { duration: 0.25, delay: on ? delay + 0.5 : 0 },
-        }}
-      >
-        <path
-          d={g.capR}
-          fill="none"
-          stroke={C.ink}
-          strokeWidth={2.4}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </motion.g>
-    </g>
-  );
-}
-
-/** A baked pencil edge revealed to an arbitrary fraction of its length. */
-function Edge({ d, frac, delay }: { d: string; frac: number; delay: number }) {
   return (
     <motion.path
       d={d}
-      pathLength={1}
       fill="none"
-      stroke={C.ink}
-      strokeWidth={2.4}
+      stroke={stroke}
+      strokeWidth={width}
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeDasharray={1}
+      pathLength={1}
+      strokeDasharray="1 1"
+      initial={false}
+      animate={{ strokeDashoffset: on ? 0 : 1 }}
+      transition={{ duration: on ? duration : 0.3, ease: EASE, delay: on ? delay : 0 }}
+    />
+  );
+}
+
+/**
+ * One duration bar. Geometry is baked at its full length and revealed by
+ * `strokeDashoffset`, so lengthening (step 3) and retracting (step 4) are the
+ * same motion and nothing ever animates a width.
+ */
+function Bar({
+  y,
+  x,
+  len,
+  frac,
+  color,
+  delay = 0,
+  duration = 0.8,
+}: {
+  y: number;
+  x: number;
+  len: number;
+  /** 0 → hidden, 1 → drawn to `len`. */
+  frac: number;
+  color: string;
+  delay?: number;
+  duration?: number;
+}) {
+  return (
+    <motion.line
+      x1={x}
+      y1={y}
+      x2={x + len}
+      y2={y}
+      stroke={color}
+      strokeWidth={BAR_W}
+      strokeLinecap="round"
+      pathLength={1}
+      strokeDasharray="1 1"
       initial={false}
       animate={{ strokeDashoffset: 1 - frac }}
-      transition={{ duration: 0.75, ease: EASE, delay }}
-      style={{ strokeDasharray: 1 }}
+      transition={{ duration: frac > 0 ? duration : 0.3, ease: EASE, delay: frac > 0 ? delay : 0 }}
     />
   );
 }
 
-// ── Dashed memory of where the bar used to end ──────────────────────────────
-
-function Ghost({ x, y, h, on }: { x: number; y: number; h: number; on: boolean }) {
-  // Asymmetric overhang: plenty of room above, but the next row's label sits
-  // just below the bar.
-  const d = useMemo(() => wobbleLine(x, y - 26, x, y + h + 8, 44, 1.1), [x, y, h]);
-  return (
-    <motion.path
-      d={d}
-      fill="none"
-      stroke={C.ash}
-      strokeWidth={2.2}
-      strokeDasharray="8 7"
-      strokeLinecap="round"
-      initial={false}
-      animate={{ opacity: on ? 1 : 0 }}
-      transition={{ duration: 0.32, ease: EASE, delay: on ? 0.1 : 0 }}
-    />
-  );
+/** Seeded shuffle so the same 85 buyers drain every run, forward or backward. */
+function rng(seed: number) {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
 }
-
-// ── 100 buyers; 85 stop paying ──────────────────────────────────────────────
 
 const CELLS = Array.from({ length: 100 }, (_, i) => ({
   i,
@@ -405,13 +165,19 @@ const CELLS = Array.from({ length: 100 }, (_, i) => ({
   cy: G_Y + Math.floor(i / 10) * G_GAP,
 }));
 
-function BuyerGrid({ step }: { step: number }) {
-  const on = step >= 2;
+// ── the diagram ─────────────────────────────────────────────────────────────
 
-  // Which dots drain, and in what order. Seeded, so it is identical every run
-  // and identical going backwards.
+export function DebtStory({ step }: { step: number }) {
+  const lang = useLang();
+  const d = S.ready.debt;
+
+  const plan = step >= 1;
+  const real = step >= 2;
+  const slip = step >= 3;
+  const back = step >= 4;
+
+  // Which buyers drain, and in what order.
   const { out, order } = useMemo(() => {
-    const count = Math.round(N.debt.defaultShare * 100);
     const idx = Array.from({ length: 100 }, (_, i) => i);
     const r = rng(20260809);
     for (let i = idx.length - 1; i > 0; i--) {
@@ -420,66 +186,189 @@ function BuyerGrid({ step }: { step: number }) {
     }
     const out = new Array<boolean>(100).fill(false);
     const order = new Array<number>(100).fill(0);
-    idx.slice(0, count).forEach((k, n) => {
+    idx.slice(0, DEFAULTED).forEach((k, n) => {
       out[k] = true;
       order[k] = n;
     });
     return { out, order };
   }, []);
 
+  const planLen = YEARS[1] * U;
+  const overrun = planLen * (STRETCH - 1);
+  const overrunFrac = back ? RECOVERED : slip ? 1 : 0;
+
   return (
-    <motion.g
-      initial={false}
-      animate={{ opacity: step >= 3 ? 0.4 : on ? 1 : 0 }}
-      transition={{ duration: 0.4, ease: EASE }}
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ width: "100%", height: "100%" }}
     >
-      <SketchRect
-        x={758}
-        y={54}
-        w={314}
-        h={314}
-        seed={63}
-        amp={1.6}
-        on={on}
-        stroke={C.ash}
-        width={1.5}
-        opacity={0.4}
+      {/* ── THE PLAN ──────────────────────────────────────────────────────── */}
+      <motion.g
+        initial={false}
+        animate={{ opacity: !plan ? 0 : real && !slip ? 0.42 : 1 }}
+        transition={{ duration: 0.5, ease: EASE }}
+      >
+        {[0, 1, 2].map((i) => {
+          const stagger = step === 1 ? i * 0.12 : 0;
+          return (
+            <g key={i}>
+              {/* figure + label, left column */}
+              <motion.g
+                initial={false}
+                animate={{ opacity: plan ? 1 : 0, x: plan ? 0 : -14 }}
+                transition={{ duration: 0.45, ease: EASE, delay: stagger + 0.06 }}
+              >
+                <text
+                  x={COL_X}
+                  y={FIG_Y[i]}
+                  fontSize={32}
+                  fontWeight={600}
+                  letterSpacing="-0.01em"
+                  fill={V.ink}
+                  className="font-display tnum"
+                >
+                  {t(d.planBars[i].v, lang)}
+                </text>
+                <text x={COL_X} y={FIG_Y[i] + 32} fontSize={20} fill={V.ash} className="font-sans">
+                  {t(d.planBars[i].t, lang)}
+                </text>
+              </motion.g>
+
+              {/* the ember overrun rides under the ink bar, so the round caps
+                  meet cleanly and the tail reads as an extension of it */}
+              {i === 1 && (
+                <Bar
+                  y={BAR_Y[i]}
+                  x={X0 + planLen}
+                  len={overrun}
+                  frac={overrunFrac}
+                  color={V.ember}
+                  delay={slip ? 0.12 : 0}
+                  duration={0.85}
+                />
+              )}
+
+              <Bar
+                y={BAR_Y[i]}
+                x={X0}
+                len={YEARS[i] * U}
+                frac={plan ? 1 : 0}
+                color={BAR_COLOR[i]}
+                delay={stagger}
+              />
+            </g>
+          );
+        })}
+
+        {/* the promise, held as a dashed memory once the bar runs past it */}
+        <motion.line
+          x1={X0 + planLen}
+          y1={BAR_Y[1] - 46}
+          x2={X0 + planLen}
+          y2={BAR_Y[1] + 46}
+          stroke={V.ash}
+          strokeWidth={3}
+          strokeDasharray="10 9"
+          strokeLinecap="round"
+          initial={false}
+          animate={{ opacity: slip ? 1 : 0, scaleY: slip ? 1 : 0.6 }}
+          transition={{ duration: 0.4, ease: EASE, delay: slip ? 0.1 : 0 }}
+          style={{ transformOrigin: `${X0 + planLen}px ${BAR_Y[1]}px` }}
+        />
+      </motion.g>
+
+      {/* ── TODAY: the trend turns back up ────────────────────────────────── */}
+      {/* Aimed at the ghost, not past it: the curve lands on the x where the
+          construction bar was promised to end. */}
+      <Draw
+        d={`M ${COL_X + 20} 472 Q 400 480 ${X0 + planLen} 410`}
+        on={back}
+        stroke={V.emerald}
+        width={5}
+        delay={0.28}
         duration={0.9}
       />
+      <Draw
+        d={`M ${X0 + planLen} 410 l -22 20 M ${X0 + planLen} 410 l -29 -7`}
+        on={back}
+        stroke={V.emerald}
+        width={5}
+        delay={1.1}
+        duration={0.24}
+      />
 
-      {/* Rings sit underneath, fully covered by the discs until they drain. */}
-      {CELLS.map((c) => (
-        <circle
-          key={`r${c.i}`}
-          cx={c.cx}
-          cy={c.cy}
-          r={RING_R}
-          fill="none"
-          stroke={out[c.i] ? C.ember : C.ink}
-          strokeWidth={1.6}
-          opacity={out[c.i] ? 0.9 : 0.3}
+      {/* ── THE REALITY: 100 buyers, 85 stop paying ───────────────────────── */}
+      <motion.g
+        initial={false}
+        animate={{ opacity: slip ? 0.34 : real ? 1 : 0 }}
+        transition={{ duration: 0.5, ease: EASE }}
+      >
+        <motion.rect
+          x={1214}
+          y={60}
+          width={378}
+          height={378}
+          rx={30}
+          fill={V.paper2}
+          initial={false}
+          animate={{ opacity: real ? 1 : 0, scale: real ? 1 : 0.93 }}
+          transition={{ duration: 0.55, ease: EASE }}
+          style={{ transformOrigin: `${1214 + 189}px ${60 + 189}px` }}
         />
-      ))}
 
-      {/* Discs. Only the 85 that default carry an animation. */}
-      {CELLS.map((c) =>
-        out[c.i] ? (
-          <motion.g
-            key={`d${c.i}`}
-            initial={false}
-            animate={{ opacity: on ? 0 : 1, scale: on ? 0.3 : 1 }}
-            transition={
-              on
-                ? { duration: 0.36, ease: EASE, delay: 0.5 + order[c.i] * 0.012 }
-                : { duration: 0.01, delay: 0.4 }
-            }
-          >
-            <circle cx={c.cx} cy={c.cy} r={DISC_R} fill={C.ink} />
-          </motion.g>
-        ) : (
-          <circle key={`d${c.i}`} cx={c.cx} cy={c.cy} r={DISC_R} fill={C.ink} />
-        ),
-      )}
-    </motion.g>
+        {/* Hollow rings sit underneath, fully covered until their disc drains. */}
+        {CELLS.map((c) =>
+          out[c.i] ? (
+            <circle
+              key={`r${c.i}`}
+              cx={c.cx}
+              cy={c.cy}
+              r={RING_R}
+              fill="none"
+              stroke={V.ember}
+              strokeWidth={3}
+            />
+          ) : null,
+        )}
+
+        {CELLS.map((c) =>
+          out[c.i] ? (
+            <motion.circle
+              key={`d${c.i}`}
+              cx={c.cx}
+              cy={c.cy}
+              r={DISC_R}
+              fill={V.ink}
+              initial={false}
+              animate={{ opacity: real ? 0 : 1, scale: real ? 0.3 : 1 }}
+              transition={
+                real
+                  ? { duration: 0.34, ease: EASE, delay: 0.42 + order[c.i] * 0.012 }
+                  : { duration: 0.01 }
+              }
+              style={{ transformOrigin: `${c.cx}px ${c.cy}px` }}
+            />
+          ) : (
+            <circle key={`d${c.i}`} cx={c.cx} cy={c.cy} r={DISC_R} fill={V.ink} />
+          ),
+        )}
+
+        <motion.text
+          x={G_X + (G_GAP * 9) / 2}
+          y={478}
+          textAnchor="middle"
+          fontSize={30}
+          letterSpacing="0.1em"
+          fill={V.ember}
+          className="font-mono tnum"
+          initial={false}
+          animate={{ opacity: real ? 1 : 0, y: real ? 0 : 10 }}
+          transition={{ duration: 0.44, ease: EASE, delay: real ? 1.34 : 0 }}
+        >
+          {`${DEFAULTED} / 100`}
+        </motion.text>
+      </motion.g>
+    </svg>
   );
 }

@@ -1,212 +1,304 @@
 "use client";
 
-import { useId, useMemo } from "react";
 import { motion } from "motion/react";
 import { EASE } from "@/deck/types";
 import { useLang } from "@/content/lang";
-import { t } from "@/content/i18n";
+import { num, t, type Lang } from "@/content/i18n";
 import { S } from "@/content/strings";
 import { N } from "@/content/figures";
-import { C, SketchLine, hatch } from "@/ui/sketch";
+import { CountUp, V } from "@/ui/vivid";
 
 /**
- * InstallmentVariants — the hinge between the slide title and the two payment
- * cards below it. A 1600 × 64 band has room for exactly one idea, so it carries
- * one: the slide splits in two, the right half is the gold one.
+ * InstallmentVariants — chapter 6, slide `o-installments`. Slot is exactly
+ * 1600 × 620 stage pixels, authored 1:1 so every figure is real text at a real
+ * size rather than a scaled SVG glyph and `.tnum` actually applies.
  *
- * Nothing here restates the cards. They already print the down payments, the
- * terms and the discount chip at full size 40 px underneath; a second, smaller
- * copy of the same numbers in a 64 px strip would only compete with them.
+ * v2 "IMARAT Vivid": two payment tracks, one per row, each read left to right
+ * as a sentence — what you put down, how many months you then pay, and what one
+ * of those months costs. Variant 2 is the gold one; it ends in a discount chip
+ * and a discounted total. Gold is money, emerald is structure.
  *
- * Step choreography — the slide has four states.
- *   0 — empty. The rule cannot draw itself on mount (`initial={false}` snaps),
- *       so it waits for a step rather than appearing already finished.
- *   1 — the rule draws left to right across the full width, the gutter serif
- *       lands at the midpoint, and variant 1's territory is claimed in ink:
- *       a heavier overdraw, two end serifs, a low ink hatch beneath.
- *   2 — variant 2's territory claims the right half in gold, matching the gold
- *       border of the card below it, and its label carries the discount.
- *   3 — unchanged. The bonus line lands elsewhere on the slide; at this height
- *       one more mark would read as clutter.
+ * Step map (slide `o-installments` has 4 steps, 0…3)
+ *   0 — the empty rails: a dashed down-payment outline per track and two grids
+ *       of unlit month cells. The shape of the deal before any number is in it.
+ *   1 — VARIANT 1. Its down-payment block wipes in left-to-right (clip-path),
+ *       its month cells tick on with a dense i*0.012 stagger — forty cells fill
+ *       in ~0.48 s, which reads as a bar filling rather than forty events — and
+ *       the down payment and monthly figures land on CountUp.
+ *   2 — VARIANT 2, same choreography in gold: a bigger down payment, the same
+ *       forty months, a visibly smaller monthly figure.
+ *   3 — the −10% chip DROPS onto variant 2 with a scale pop (1.5 → 1), the gold
+ *       rule draws across the foot, and the discounted total counts up.
  *
- * Territory edges are the cards' own edges. The slot starts at stage x=160 and
- * the cards sit at 160 and 1000, both 760 wide, so in band coordinates they are
- * 0–760 and 840–1600; the marks stop 4 px short of each so the pencil does not
- * look like it is trying to be a border.
+ * Every figure is read from `N.plans` — including the cell counts, which are
+ * the term lengths themselves, and the discount percentage. Only transform,
+ * opacity and clip-path animate.
  */
 
-const RULE_Y = 36;
-const LEFT: [number, number] = [0, 756];
-const RIGHT: [number, number] = [844, 1600];
-const GUTTER = 800;
+const W = 1600;
+const H = 640;
 
-const SERIF_TOP = 28;
-const SERIF_BOTTOM = 44;
-const HATCH_Y = 40;
-const HATCH_H = 15;
+// two tracks
+const ROW_H = 240;
+const ROW_Y = [0, 268] as const;
 
-/** 45° hatch revealed by translating an oversized mask.
- *
- *  The shared `Hatch` scales a clip rect about a pixel `transform-origin`, and
- *  motion replaces that origin with `50% 50%` on SVG as soon as a transform
- *  exists — the wipe then opens from the middle of the band rather than from
- *  its left edge, which at this width is very visible. A translate cannot lose
- *  an origin it never had. */
-function HatchBand({
-  x,
-  w,
-  on,
-  stroke,
-  opacity,
-  seed,
-  delay,
+// left column — the down payment
+const A_W = 380;
+const BLOCK_Y = 54;
+const BLOCK_H = 132;
+
+// middle — the months
+const G_X = 430;
+const G_Y = 54;
+const G_COLS = 10;
+const CELL_W = 70;
+const CELL_H = 32;
+const CELL_GAP = 8;
+
+// right — the monthly figure
+const C_X = 1250;
+const C_W = 350;
+
+// foot — the discounted total
+const FOOT_RULE_Y = 536;
+const FOOT_Y = 560;
+
+const GHOST_CELL = "rgba(10,31,20,0.07)";
+const GHOST_LINE = "rgba(10,31,20,0.16)";
+
+type Track = {
+  key: string;
+  tag: string;
+  down: number;
+  months: number;
+  monthly: number;
+  altMonths: number;
+  altMonthly: number;
+  gold: boolean;
+  at: number;
+};
+
+/** One payment track: down-payment block, month grid, monthly figure. */
+function Row({
+  track,
+  step,
+  lang,
+  chip,
 }: {
-  x: number;
-  w: number;
-  on: boolean;
-  stroke: string;
-  opacity: number;
-  seed: number;
-  delay: number;
+  track: Track;
+  step: number;
+  lang: Lang;
+  chip?: React.ReactNode;
 }) {
-  const uid = useId().replace(/:/g, "");
-  const boxId = `iv-box-${uid}`;
-  const wipeId = `iv-wipe-${uid}`;
-  const d = useMemo(() => hatch(x, HATCH_Y, w, HATCH_H, 13, 45, seed), [x, w, seed]);
+  const o = S.offer.installments;
+  const on = step >= track.at;
+  const gold = track.gold;
+  const accent = gold ? V.gold : V.emerald;
+  const soumLabel = lang === "latn" ? "soʻm" : "сўм";
+
+  const rows = Math.ceil(track.months / G_COLS);
+  const gridH = rows * CELL_H + (rows - 1) * CELL_GAP;
 
   return (
-    <g>
-      <defs>
-        <clipPath id={boxId}>
-          <rect x={x} y={HATCH_Y} width={w} height={HATCH_H} />
-        </clipPath>
-        <clipPath id={wipeId}>
-          <motion.rect
-            x={x}
-            y={HATCH_Y - 3}
-            width={w}
-            height={HATCH_H + 6}
-            initial={false}
-            animate={{ x: on ? 0 : -w - 2 }}
-            transition={{ duration: 0.85, ease: EASE, delay: on ? delay : 0 }}
-          />
-        </clipPath>
-      </defs>
-      <g clipPath={`url(#${boxId})`}>
-        <g clipPath={`url(#${wipeId})`}>
-          <path d={d} fill="none" stroke={stroke} strokeWidth={1.5} opacity={opacity} />
-        </g>
-      </g>
-    </g>
-  );
-}
+    <>
+      {/* ── tag ─────────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          width: 900,
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+        }}
+      >
+        <motion.div
+          className="font-mono"
+          initial={false}
+          animate={{ opacity: on ? 1 : 0.3, x: on ? 0 : -10 }}
+          transition={{ duration: 0.4, ease: EASE }}
+          style={{
+            fontSize: 22,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: on ? accent : V.ash,
+          }}
+        >
+          {track.tag}
+        </motion.div>
+        {chip}
+      </div>
 
-/** One variant's stretch of the rule: overdraw, two end serifs, hatch below. */
-function Territory({
-  span,
-  on,
-  color,
-  hatchOpacity,
-  seed,
-  delay,
-}: {
-  span: [number, number];
-  on: boolean;
-  color: string;
-  hatchOpacity: number;
-  seed: number;
-  delay: number;
-}) {
-  const [x0, x1] = span;
-  // Inset so the mark reads as a pencil claim, not as a box around the card.
-  const a = x0 + 4;
-  const b = x1 - 4;
+      {/* ── down-payment block ──────────────────────────────────────────── */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: BLOCK_Y,
+          width: A_W,
+          height: BLOCK_H,
+          borderRadius: 26,
+          border: `1.5px dashed ${GHOST_LINE}`,
+        }}
+      />
+      <motion.div
+        initial={false}
+        animate={{
+          clipPath: on ? "inset(0% 0% 0% 0% round 26px)" : "inset(0% 100% 0% 0% round 26px)",
+        }}
+        transition={{ duration: 0.62, ease: EASE }}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: BLOCK_Y,
+          width: A_W,
+          height: BLOCK_H,
+          borderRadius: 26,
+          background: gold ? V.gold : V.paper,
+          border: `2px solid ${accent}`,
+          boxShadow: "0 18px 46px rgba(10,31,20,0.10)",
+          padding: "0 28px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          className="font-mono"
+          style={{
+            fontSize: 18,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: gold ? "rgba(10,31,20,0.66)" : V.ash,
+          }}
+        >
+          {t(o.downLabel, lang)}
+        </div>
+        <div style={{ marginTop: 12, display: "flex", alignItems: "baseline", gap: 9 }}>
+          <span
+            className="tnum"
+            style={{ fontSize: 38, fontWeight: 700, letterSpacing: "-0.02em", color: V.ink }}
+          >
+            <CountUp to={track.down} on={on} duration={0.9} delay={0.2} format={(v) => num(v)} />
+          </span>
+          <span
+            className="font-mono"
+            style={{ fontSize: 20, color: gold ? "rgba(10,31,20,0.72)" : V.ash }}
+          >
+            {soumLabel}
+          </span>
+        </div>
+      </motion.div>
 
-  return (
-    <g>
-      <SketchLine
-        x1={a}
-        y1={RULE_Y}
-        x2={b}
-        y2={RULE_Y}
-        seed={seed}
-        amp={1.2}
-        on={on}
-        stroke={color}
-        width={3}
-        delay={delay}
-        duration={0.6}
-      />
-      <SketchLine
-        x1={a}
-        y1={SERIF_TOP}
-        x2={a}
-        y2={SERIF_BOTTOM}
-        seed={seed + 3}
-        amp={0.7}
-        on={on}
-        stroke={color}
-        width={2.2}
-        delay={delay + 0.12}
-        duration={0.22}
-      />
-      <SketchLine
-        x1={b}
-        y1={SERIF_TOP}
-        x2={b}
-        y2={SERIF_BOTTOM}
-        seed={seed + 6}
-        amp={0.7}
-        on={on}
-        stroke={color}
-        width={2.2}
-        delay={delay + 0.42}
-        duration={0.22}
-      />
-      <HatchBand
-        x={a}
-        w={b - a}
-        on={on}
-        stroke={color}
-        opacity={hatchOpacity}
-        seed={seed + 9}
-        delay={delay + 0.14}
-      />
-    </g>
-  );
-}
+      {/* ── month cells ────────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: "absolute",
+          left: G_X,
+          top: G_Y,
+          width: G_COLS * CELL_W + (G_COLS - 1) * CELL_GAP,
+          height: gridH,
+        }}
+      >
+        {Array.from({ length: track.months }, (_, i) => {
+          const col = i % G_COLS;
+          const row = Math.floor(i / G_COLS);
+          return (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                left: col * (CELL_W + CELL_GAP),
+                top: row * (CELL_H + CELL_GAP),
+                width: CELL_W,
+                height: CELL_H,
+              }}
+            >
+              <div
+                style={{ position: "absolute", inset: 0, borderRadius: 8, background: GHOST_CELL }}
+              />
+              <motion.div
+                initial={false}
+                animate={{ opacity: on ? 1 : 0, scale: on ? 1 : 0.6 }}
+                transition={{ duration: 0.3, ease: EASE, delay: on ? 0.22 + i * 0.012 : 0 }}
+                style={{ position: "absolute", inset: 0, borderRadius: 8, background: accent }}
+              />
+            </div>
+          );
+        })}
+      </div>
 
-/** Mono caps, same voice as the labels printed on the cards below. */
-function Tag({
-  x,
-  text,
-  on,
-  color,
-  anchor,
-  delay,
-}: {
-  x: number;
-  text: string;
-  on: boolean;
-  color: string;
-  anchor: "start" | "end";
-  delay: number;
-}) {
-  return (
-    <motion.text
-      x={x}
-      y={20}
-      fill={color}
-      fontSize={20}
-      textAnchor={anchor}
-      className="font-mono"
-      style={{ letterSpacing: "0.12em", textTransform: "uppercase" }}
-      initial={false}
-      animate={{ opacity: on ? 1 : 0, y: on ? 0 : 5 }}
-      transition={{ duration: 0.32, ease: EASE, delay: on ? delay : 0 }}
-    >
-      {text}
-    </motion.text>
+      {/* the other term, spelled out under its own grid */}
+      <motion.div
+        className="font-mono"
+        initial={false}
+        animate={{ opacity: on ? 1 : 0, y: on ? 0 : 8 }}
+        transition={{ duration: 0.36, ease: EASE, delay: on ? 0.76 : 0 }}
+        style={{
+          position: "absolute",
+          left: G_X,
+          top: G_Y + gridH + 18,
+          width: 800,
+          fontSize: 19,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: V.ash,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {`${t(o.or, lang)} ${track.altMonths} ${t(o.monthsLabel, lang)} — ${num(
+          track.altMonthly,
+        )} ${soumLabel}`}
+      </motion.div>
+
+      {/* ── the month you actually pay ─────────────────────────────────── */}
+      <motion.div
+        initial={false}
+        animate={{ opacity: on ? 1 : 0, x: on ? 0 : -16 }}
+        transition={{ duration: 0.44, ease: EASE, delay: on ? 0.44 : 0 }}
+        style={{ position: "absolute", left: C_X, top: G_Y - 4, width: C_W }}
+      >
+        <div
+          className="tnum"
+          style={{
+            fontSize: 58,
+            lineHeight: 1,
+            fontWeight: 700,
+            letterSpacing: "-0.03em",
+            color: gold ? V.gold : V.ink,
+          }}
+        >
+          <CountUp to={track.monthly} on={on} duration={1.05} delay={0.5} format={(v) => num(v)} />
+        </div>
+        <div
+          className="font-mono"
+          style={{
+            marginTop: 14,
+            fontSize: 20,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: V.ash,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {`${soumLabel} / ${t(o.monthlyLabel, lang)}`}
+        </div>
+        <div
+          className="tnum font-mono"
+          style={{
+            marginTop: 10,
+            fontSize: 20,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: accent,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {`${track.months} ${t(o.monthsLabel, lang)}`}
+        </div>
+      </motion.div>
+    </>
   );
 }
 
@@ -214,58 +306,138 @@ export function InstallmentVariants({ step }: { step: number }) {
   const lang = useLang();
   const o = S.offer.installments;
 
-  const one = step >= 1;
-  const two = step >= 2;
+  const a = N.plans.a;
+  const b = N.plans.b;
+  const settled = step >= 3;
 
-  const discount = `−${Math.round(N.plans.b.discount * 100)}%`;
+  const tracks: Track[] = [
+    {
+      key: "a",
+      tag: t(o.v1, lang),
+      down: a.down,
+      months: a.terms[0].months,
+      monthly: a.terms[0].monthly,
+      altMonths: a.terms[1].months,
+      altMonthly: a.terms[1].monthly,
+      gold: false,
+      at: 1,
+    },
+    {
+      key: "b",
+      tag: t(o.v2, lang),
+      down: b.down,
+      months: b.terms[0].months,
+      monthly: b.terms[0].monthly,
+      altMonths: b.terms[1].months,
+      altMonthly: b.terms[1].monthly,
+      gold: true,
+      at: 2,
+    },
+  ];
+
+  const discount = `−${Math.round(b.discount * 100)}% ${t(o.discountLabel, lang)}`;
 
   return (
-    <svg viewBox="0 0 1600 64" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      {/* The rule itself — one stroke, left to right, under both variants. */}
-      {/* Inset by the cap radius: a round cap sitting exactly on the viewBox
-          edge gets sliced in half by the viewport. */}
-      <SketchLine
-        x1={2}
-        y1={RULE_Y}
-        x2={1598}
-        y2={RULE_Y}
-        seed={17}
-        amp={1.4}
-        on={one}
-        stroke={C.ink}
-        width={2}
-        opacity={0.45}
-        duration={0.95}
-      />
+    <div style={{ position: "relative", width: W, height: H }}>
+      {tracks.map((track, i) => (
+        <div
+          key={track.key}
+          style={{ position: "absolute", left: 0, top: ROW_Y[i], width: W, height: ROW_H }}
+        >
+          <Row
+            track={track}
+            step={step}
+            lang={lang}
+            chip={
+              track.gold ? (
+                <motion.span
+                  className="font-mono"
+                  initial={false}
+                  animate={{
+                    opacity: settled ? 1 : 0,
+                    scale: settled ? 1 : 1.5,
+                    y: settled ? 0 : -24,
+                  }}
+                  transition={{ duration: 0.46, ease: EASE }}
+                  style={{
+                    display: "inline-block",
+                    padding: "9px 20px 8px",
+                    borderRadius: 999,
+                    background: V.gold,
+                    color: V.ink,
+                    fontSize: 20,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    lineHeight: 1,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {discount}
+                </motion.span>
+              ) : undefined
+            }
+          />
+        </div>
+      ))}
 
-      {/* Gutter serif: the split, announced before either card has landed. */}
-      <SketchLine
-        x1={GUTTER}
-        y1={16}
-        x2={GUTTER}
-        y2={52}
-        seed={29}
-        amp={0.8}
-        on={one}
-        stroke={C.ink}
-        width={1.5}
-        opacity={0.24}
-        delay={0.62}
-        duration={0.3}
+      {/* ── discounted total ──────────────────────────────────────────────── */}
+      <motion.div
+        initial={false}
+        animate={{ scaleX: settled ? 1 : 0 }}
+        transition={{ duration: 0.6, ease: EASE }}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: FOOT_RULE_Y,
+          width: W,
+          height: 3,
+          borderRadius: 3,
+          background: V.gold,
+          transformOrigin: "left center",
+        }}
       />
-
-      <Territory span={LEFT} on={one} color={C.ink} hatchOpacity={0.15} seed={41} delay={0.5} />
-      <Territory span={RIGHT} on={two} color={C.gold} hatchOpacity={0.32} seed={67} delay={0.1} />
-
-      <Tag x={4} text={t(o.v1, lang)} on={one} color={C.ash} anchor="start" delay={0.72} />
-      <Tag
-        x={1596}
-        text={`${t(o.v2, lang)} · ${discount}`}
-        on={two}
-        color={C.gold}
-        anchor="end"
-        delay={0.32}
-      />
-    </svg>
+      <motion.div
+        initial={false}
+        animate={{ opacity: settled ? 1 : 0, y: settled ? 0 : 16 }}
+        transition={{ duration: 0.44, ease: EASE, delay: settled ? 0.16 : 0 }}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: FOOT_Y,
+          width: W,
+          display: "flex",
+          alignItems: "baseline",
+          gap: 26,
+        }}
+      >
+        <span
+          className="font-mono"
+          style={{
+            fontSize: 22,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: V.ash,
+          }}
+        >
+          {t(o.totalLabel, lang)}
+        </span>
+        <span
+          className="tnum"
+          style={{
+            fontSize: 62,
+            lineHeight: 1,
+            fontWeight: 700,
+            letterSpacing: "-0.03em",
+            color: V.gold,
+          }}
+        >
+          <CountUp to={b.total} on={settled} duration={1.2} delay={0.2} format={(v) => num(v)} />
+        </span>
+        <span className="font-mono" style={{ fontSize: 24, color: V.ash }}>
+          {lang === "latn" ? "soʻm" : "сўм"}
+        </span>
+      </motion.div>
+    </div>
   );
 }

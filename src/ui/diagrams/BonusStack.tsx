@@ -2,253 +2,205 @@
 
 import { motion } from "motion/react";
 import { EASE } from "@/deck/types";
+import { useLang } from "@/content/lang";
+import { t } from "@/content/i18n";
+import { S } from "@/content/strings";
 import { N } from "@/content/figures";
-import { C, Hatch, SketchEllipse, SketchPath, wobbleLine, wobbleRect } from "@/ui/sketch";
+import { V } from "@/ui/vivid";
 
 /**
- * BonusStack — chapter 4, "Keyingi xarid uchun bonuslar", slot 940 × 300.
+ * BonusStack — chapter 4, "Keyingi xarid uchun bonuslar". Slot is exactly
+ * 1160 × 690 stage pixels.
  *
- * The slide's own list names the five perks; this drawing carries the shape of
- * the deal instead — four tiers stacking on one ground line, each one longer
- * and more densely washed than the last, so "more contracts, more back" is
- * legible before a word is read.
+ * Four bonus plates stack bottom-to-top, one per beat, each landing with a
+ * scale pop (1.25 → 1). Two of them — "bepul taʼmir" and "bepul jihozlash" —
+ * carry a gold threshold chip whose number comes from
+ * `N.vip.freeRenovationFrom` / `N.vip.freeFurnishingFrom`.
  *
- * Step choreography (VipBonuses, 6 steps)
- *   0 — ground line and four dashed tier ghosts: the rungs, waiting.
- *   1..4 — one tier lands per step, bottom to top. Outline draws in ink, the
- *          gold wash wipes up behind it, and its ordinal appears in the margin.
- *          Steps 2–4 carry no new slide copy, so the presenter has the stack to
- *          talk against while walking the list.
- *   5 — the two thresholds light up: a gold over-draw on the tiers at
- *       N.vip.freeRenovationFrom and N.vip.freeFurnishingFrom, each with a
- *       leader out to a circled "1+" / "2+" chip. This is the slide's only
- *       statement of those two figures in place, so it carries the beat alone.
+ * Step map (VipBonuses, 6 steps)
+ *   0 — the empty rack: four dashed ghost plates and the ground rule.
+ *   1 — plate 01 lands (bottom).
+ *   2 — plate 02.
+ *   3 — plate 03.
+ *   4 — plate 04 (top). The stack is complete.
+ *   5 — the two gold threshold chips pop in on the plates the figures name,
+ *       and those plates settle to their gold treatment. No loop — the settled
+ *       state is a state, not an animation.
  *
- * Pure function of `step`. Only transform, opacity and strokeDashoffset move.
+ * Only transform and opacity animate. Shadows and borders are static.
  */
 
-// ── geometry, baked once at module load ─────────────────────────────────────
+const SLOT_W = 1060;
+const SLOT_H = 690;
 
-const X0 = 62;
-const BASE_Y = 262;
-const SLAB_H = 50;
-const PITCH = 58;
+/** Only four plates fit the stack; the fifth string is carried by the slide. */
+const PLATES = 4;
 
-/** Left-aligned and widening upward: a staircase profile, not a pyramid. */
-const WIDTHS = [420, 540, 660, 780] as const;
-const HATCH_GAP = [20, 16, 12, 9] as const;
-const HATCH_OP = [0.16, 0.22, 0.29, 0.36] as const;
+const PLATE_H = 128;
+const PITCH = 152;
+const BASE_TOP = SLOT_H - PLATE_H - 18; // bottom plate's top edge
 
-const TIER = WIDTHS.map((w, i) => ({
-  w,
-  y: BASE_Y - SLAB_H - i * PITCH,
-  mid: BASE_Y - SLAB_H / 2 - i * PITCH,
-  right: X0 + w,
-}));
-
-const SLAB_D = TIER.map((tr, i) => wobbleRect(X0, tr.y, tr.w, SLAB_H, 21 + i * 9, 1.3, 2.5));
-const GHOST_D = TIER.map((tr, i) => wobbleRect(X0, tr.y, tr.w, SLAB_H, 141 + i * 7, 1.5));
-
-const GROUND = wobbleLine(40, BASE_Y, 900, BASE_Y, 11, 1.4);
+/** Left-aligned and widening upward: a staircase, so "more back" reads first.
+ *  The top plate plus its chip (28 gap + 108) has to stay inside SLOT_W. */
+const WIDTHS = [640, 730, 820, 910] as const;
 
 /**
- * Which tier each bonus unlocks at. Driven by the figures, not hard-coded: move
- * `freeFurnishingFrom` to 3 and the chip walks up the stack with it.
+ * Which plate carries which gold threshold chip. Keyed by the bonus's own index
+ * in `S.vip.bonuses.items` — item 01 is "bepul taʼmir", item 02 "bepul
+ * jihozlash" — and labelled from the figures, never retyped: change
+ * `freeFurnishingFrom` and the chip's number changes with it.
  */
-const CHIPS = [
-  { from: N.vip.freeRenovationFrom, seed: 61 },
-  { from: N.vip.freeFurnishingFrom, seed: 71 },
-].map(({ from, seed }) => {
-  const i = Math.min(Math.max(from - 1, 0), TIER.length - 1);
-  const tr = TIER[i];
-  return {
-    i,
-    seed,
-    label: `${from}+`,
-    cx: tr.right + 46,
-    cy: tr.mid,
-    leader: wobbleLine(tr.right + 6, tr.mid, tr.right + 22, tr.mid, seed + 3, 0.6),
-  };
-});
-
-/** Tiers that get a gold over-draw at step 5, deduplicated. */
-const LIT = Array.from(new Set(CHIPS.map((c) => c.i)));
-
-// ── parts ───────────────────────────────────────────────────────────────────
-
-/** Dashed outline of a tier not yet earned. Fades, never draws on. */
-function Ghost({ d, on }: { d: string; on: boolean }) {
-  return (
-    <motion.path
-      d={d}
-      fill="none"
-      stroke={C.ash}
-      strokeWidth={1.6}
-      strokeDasharray="9 9"
-      strokeLinecap="round"
-      initial={false}
-      animate={{ opacity: on ? 0.45 : 0 }}
-      transition={{ duration: 0.35, ease: EASE }}
-    />
-  );
-}
-
-/** Margin ordinal: which contract number this tier is. */
-function Ordinal({ n, y, on, delay }: { n: number; y: number; on: boolean; delay: number }) {
-  return (
-    <motion.text
-      x={X0 - 18}
-      y={y + 9}
-      fill={C.ash}
-      fontSize={26}
-      textAnchor="end"
-      className="tnum font-mono"
-      initial={false}
-      animate={{ opacity: on ? 1 : 0, x: on ? 0 : -8 }}
-      transition={{ duration: 0.3, ease: EASE, delay: on ? delay : 0 }}
-    >
-      {n}
-    </motion.text>
-  );
-}
-
-/** Circled gold threshold marker. */
-function ThresholdChip({
-  cx,
-  cy,
-  label,
-  leader,
-  on,
-  delay,
-  seed,
-}: {
-  cx: number;
-  cy: number;
-  label: string;
-  leader: string;
-  on: boolean;
-  delay: number;
-  seed: number;
-}) {
-  return (
-    <g>
-      <SketchPath
-        d={leader}
-        on={on}
-        stroke={C.gold}
-        width={1.8}
-        opacity={0.8}
-        delay={delay}
-        duration={0.2}
-      />
-      <SketchEllipse
-        cx={cx}
-        cy={cy}
-        rx={24}
-        ry={22}
-        seed={seed}
-        on={on}
-        stroke={C.gold}
-        width={2.6}
-        delay={delay + 0.14}
-        duration={0.4}
-      />
-      <motion.text
-        x={cx}
-        y={cy + 9}
-        fill={C.gold}
-        fontSize={26}
-        fontWeight={600}
-        textAnchor="middle"
-        className="tnum font-sans"
-        initial={false}
-        animate={{ opacity: on ? 1 : 0, scale: on ? 1 : 0.72 }}
-        transition={{ duration: 0.28, ease: EASE, delay: on ? delay + 0.3 : 0 }}
-      >
-        {label}
-      </motion.text>
-    </g>
-  );
-}
-
-// ── the diagram ─────────────────────────────────────────────────────────────
+const CHIP_AT = new Map<number, string>([
+  [1, `${N.vip.freeRenovationFrom}+`],
+  [2, `${N.vip.freeFurnishingFrom}+`],
+]);
 
 export function BonusStack({ step }: { step: number }) {
+  const lang = useLang();
+  const items = S.vip.bonuses.items;
   const marked = step >= 5;
 
   return (
-    <svg viewBox="0 0 940 300" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      <SketchPath d={GROUND} on stroke={C.ash} width={1.5} opacity={0.55} duration={0.8} />
-      <Hatch
-        x={40}
-        y={BASE_Y}
-        w={860}
-        h={16}
-        gap={13}
-        angle={45}
-        seed={17}
-        on
-        stroke={C.ash}
-        width={1.2}
-        opacity={0.35}
-        delay={0.2}
-        duration={0.7}
+    <div style={{ position: "relative", width: SLOT_W, height: SLOT_H }}>
+      {/* ground */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: SLOT_H - 6,
+          width: 940,
+          height: 4,
+          borderRadius: 4,
+          background: "rgba(10,31,20,0.14)",
+        }}
       />
 
-      {TIER.map((tr, i) => {
+      {Array.from({ length: PLATES }, (_, i) => {
+        const item = items[i];
         const on = step >= i + 1;
-        const lit = marked && LIT.includes(i);
+        const w = WIDTHS[i];
+        const top = BASE_TOP - i * PITCH;
+        const chip = marked ? CHIP_AT.get(i) : undefined;
+        const lit = chip !== undefined;
+
         return (
-          /* Translate only: every child gates its own opacity, so the group can
-             carry the settle without fading anything twice. */
-          <motion.g
-            key={i}
-            initial={false}
-            animate={{ y: on ? 0 : -16 }}
-            transition={{ duration: 0.38, ease: EASE }}
-          >
-            <Ghost d={GHOST_D[i]} on={!on} />
-            <SketchPath d={SLAB_D[i]} on={on} stroke={C.ink} width={2.4} duration={0.5} />
-            <Hatch
-              x={X0 + 3}
-              y={tr.y + 3}
-              w={tr.w - 6}
-              h={SLAB_H - 6}
-              gap={HATCH_GAP[i]}
-              angle={45}
-              seed={31 + i * 5}
-              on={on}
-              stroke={C.gold}
-              width={1.5}
-              opacity={HATCH_OP[i]}
-              delay={0.22}
-              duration={0.55}
+          <div key={i} style={{ position: "absolute", left: 0, top, width: SLOT_W, height: PLATE_H }}>
+            {/* ghost of a plate not yet earned */}
+            <motion.div
+              initial={false}
+              animate={{ opacity: on ? 0 : 1 }}
+              transition={{ duration: 0.3, ease: EASE }}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: w,
+                height: PLATE_H,
+                borderRadius: 26,
+                border: "1.5px dashed rgba(10,31,20,0.20)",
+              }}
             />
-            <SketchPath
-              d={SLAB_D[i]}
-              on={lit}
-              stroke={C.gold}
-              width={3.2}
-              delay={LIT.indexOf(i) * 0.18}
-              duration={0.45}
-            />
-            <Ordinal n={i + 1} y={tr.mid} on={on} delay={0.3} />
-          </motion.g>
+
+            <motion.div
+              initial={false}
+              animate={{ opacity: on ? 1 : 0, scale: on ? 1 : 1.25, y: on ? 0 : -18 }}
+              transition={{ duration: 0.5, ease: EASE, delay: on ? i * 0.06 : 0 }}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: w,
+                height: PLATE_H,
+                borderRadius: 26,
+                transformOrigin: "left center",
+                background: lit ? V.gold : V.paper,
+                border: `1.5px solid ${lit ? V.gold : "rgba(10,31,20,0.09)"}`,
+                boxShadow: "0 18px 46px rgba(10,31,20,0.10)",
+                display: "flex",
+                alignItems: "center",
+                gap: 26,
+                padding: "0 32px",
+              }}
+            >
+              <div
+                className="tnum font-mono"
+                style={{
+                  flexShrink: 0,
+                  fontSize: 22,
+                  letterSpacing: "0.08em",
+                  color: lit ? V.ink : V.emerald,
+                }}
+              >
+                {String(i + 1).padStart(2, "0")}
+              </div>
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: 2,
+                  height: 62,
+                  borderRadius: 2,
+                  background: lit ? "rgba(10,31,20,0.28)" : "rgba(10,31,20,0.10)",
+                }}
+              />
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 32,
+                    fontWeight: 600,
+                    lineHeight: 1.12,
+                    letterSpacing: "-0.012em",
+                    color: V.ink,
+                  }}
+                >
+                  {t(item.t, lang)}
+                </div>
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: 22,
+                    fontWeight: 300,
+                    lineHeight: 1.3,
+                    color: lit ? "rgba(10,31,20,0.62)" : V.ash,
+                  }}
+                >
+                  {t(item.d, lang)}
+                </div>
+              </div>
+            </motion.div>
+
+            {/* threshold chip, popped in beside its own plate */}
+            {CHIP_AT.has(i) && (
+              <motion.div
+                initial={false}
+                animate={{ opacity: marked ? 1 : 0, scale: marked ? 1 : 0.6 }}
+                transition={{
+                  duration: 0.42,
+                  ease: EASE,
+                  delay: marked ? Array.from(CHIP_AT.keys()).indexOf(i) * 0.12 : 0,
+                }}
+                className="tnum font-display"
+                style={{
+                  position: "absolute",
+                  left: w + 28,
+                  top: (PLATE_H - 84) / 2,
+                  width: 108,
+                  height: 84,
+                  borderRadius: 24,
+                  background: V.ink,
+                  color: V.gold,
+                  fontSize: 40,
+                  fontWeight: 600,
+                  letterSpacing: "-0.02em",
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                {CHIP_AT.get(i)}
+              </motion.div>
+            )}
+          </div>
         );
       })}
-
-      {CHIPS.map((c, k) => (
-        <ThresholdChip
-          key={c.label}
-          cx={c.cx}
-          cy={c.cy}
-          label={c.label}
-          leader={c.leader}
-          on={marked}
-          delay={0.24 + k * 0.22}
-          seed={c.seed}
-        />
-      ))}
-    </svg>
+    </div>
   );
 }

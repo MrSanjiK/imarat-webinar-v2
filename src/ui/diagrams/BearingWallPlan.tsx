@@ -1,47 +1,39 @@
 "use client";
 
-import { useId, useMemo } from "react";
+import { useId } from "react";
 import { motion } from "motion/react";
 import { EASE } from "@/deck/types";
 import { num, t } from "@/content/i18n";
 import { useLang } from "@/content/lang";
 import { S } from "@/content/strings";
 import { N } from "@/content/figures";
-import {
-  Annotation,
-  C,
-  SketchArrow,
-  SketchLine,
-  SketchPath,
-  rng,
-  smooth,
-  wobbleLine,
-  wobblePoly,
-  wobbleRect,
-  type Pt,
-} from "@/ui/sketch";
+import { V } from "@/ui/vivid";
 
 /**
  * BearingWallPlan — chapter 1 (dark), slide 06 "Yuk koʻtaruvchi devorga tegib
- * boʻlmaydi". Box 860 × 600.
+ * boʻlmaydi". Slot 860 × 600.
  *
- * An apartment floor in plan view. The three bays are drawn to scale off
- * N.materials.bearingWallSpacing: 3 m, 4.5 m (the midpoint) and 6 m, so the
- * drawing itself is the claim "every 3–6 metres".
+ * v2 "IMARAT Vivid": flat vector. Walls are solid poché arriving by clip-rect
+ * wipe; outlines draw with pathLength + strokeDashoffset. No pencil, no filter.
  *
- *   step 0 — empty sheet.
- *   step 1 — the envelope, the cross-walls and the partitions draw in, all in
- *            neutral pencil; doors get their swings. Nothing is special yet.
- *   step 2 — the load-bearing walls light up: ember over-draw plus 45° poché,
- *            and the dimension line underneath measures the three bays.
- *   step 3 — the middle cross-wall is gone. It fades to a dashed ghost, the
- *            slab above it cracks, the two walls that inherit the load are
- *            over-drawn hotter and arrowed, the freed floor area is hatched in
- *            ember, and a second dimension line reports the new 10,5 m span.
+ * The three bays are drawn to scale off N.materials.bearingWallSpacing — 3 m,
+ * 4.5 m (the midpoint) and 6 m — so the drawing itself is the claim.
  *
- * Pure function of `step`. Draw-ons are gated by monotonic `step >= n` booleans;
- * the one thing that goes away (the demolished wall) does so through a group
- * opacity, which is a pure function of `step` and reverses exactly.
+ * Step map (slide q-bearing has 4 steps, 0…3)
+ *   0 — empty.
+ *   1 — the apartment plan draws: envelope, two cross-walls, partitions and
+ *       door swings, all in neutral white. Nothing is special yet.
+ *   2 — the load-bearing walls are INDICATED: emerald poché wipes into each
+ *       one, the outline is over-drawn emerald, and the dimension line under
+ *       the plan measures the three bays.
+ *   3 — the middle cross-wall is REMOVED (the ember moment): it fades to a
+ *       dashed ember ghost, the freed floor area fills ember, cracks radiate
+ *       through the slab, and the load RE-ROUTES — the two neighbour walls go
+ *       ember-hot and their load arrows thicken and extend outward. A second
+ *       dimension line reports the new 10,5 m span.
+ *
+ * Pure function of `step`. The one thing that goes away does so through a group
+ * opacity keyed on `step`, which reverses exactly.
  */
 
 // ── geometry ─────────────────────────────────────────────────────────────────
@@ -53,7 +45,7 @@ const Y0 = 100;
 const PW = 704;
 const PH = 340;
 const Y1 = Y0 + PH; // 440
-const T = 16; // load-bearing wall thickness, in plan
+const T = 18; // load-bearing wall thickness in plan
 
 /** 3 m, 4.5 m, 6 m — the band's floor, midpoint and ceiling, left to right. */
 const SPAN = N.materials.bearingWallSpacing;
@@ -64,7 +56,7 @@ const PPM = PW / METRES;
 /** Cross-wall centrelines. */
 const XS = [X0, X0 + BAYS[0] * PPM, X0 + (BAYS[0] + BAYS[1]) * PPM, X0 + PW];
 
-/** The span left over once the middle cross-wall is removed: 4,5 + 6 = 10,5 m. */
+/** The span left once the middle cross-wall goes: 4,5 + 6 = 10,5 m. */
 const NEW_SPAN = BAYS[1] + BAYS[2];
 
 const r = (x: number, y: number, w: number, h: number): Rect => ({ x, y, w, h });
@@ -97,161 +89,215 @@ const PARTITIONS: Array<[number, number, number, number]> = [
 ];
 
 /** Door swings: centre, radius, and the quarter the leaf sweeps through. */
-const DOORS: Array<{ cx: number; cy: number; rad: number; a0: number; a1: number; lx: number; ly: number }> = [
+const DOORS = [
   { cx: 150, cy: 232, rad: 40, a0: 0, a1: -Math.PI / 2, lx: 150, ly: 192 },
   { cx: 340, cy: 300, rad: 40, a0: Math.PI, a1: Math.PI * 1.5, lx: 340, ly: 260 },
   { cx: 660, cy: 330, rad: 42, a0: Math.PI / 2, a1: Math.PI, lx: 618, ly: 330 },
 ];
 
 /** Slab cracks radiating out of the wall that was taken away. */
-const CRACKS: Pt[][] = [
+const CRACKS: Array<Array<[number, number]>> = [
   [[469, 92], [450, 126], [460, 164], [436, 204], [444, 244], [416, 288]],
   [[469, 448], [493, 412], [483, 372], [509, 330], [499, 286], [526, 240]],
   [[469, 268], [514, 258], [556, 276], [602, 264], [648, 280], [698, 268]],
 ];
 
-/** Floor area that loses its support: cross-wall 1 through to the east gable. */
+/** The floor area that loses its support: cross-wall 1 through to the east gable. */
 const FREED: Rect = r(XS[1] + T / 2, Y0, XS[3] - XS[1] - T, PH);
 
-const DIM_Y = 494;
-const DIM2_Y = 540;
+const DIM_Y = 496;
+const DIM2_Y = 542;
 
-const LINE = "rgba(244,241,234,0.86)";
-const PART = "rgba(244,241,234,0.45)";
-const DIM = "rgba(244,241,234,0.52)";
-const FAINT = "rgba(244,241,234,0.26)";
+const BASE = "rgba(244,251,244,0.9)";
+const DIM = "rgba(244,251,244,0.35)";
+const MID = "rgba(244,251,244,0.6)";
 
 const rectD = (b: Rect) => `M ${b.x} ${b.y} H ${b.x + b.w} V ${b.y + b.h} H ${b.x} Z`;
+const poly = (p: Array<[number, number]>) =>
+  p.map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
 
-/**
- * 45° hatching in the deck's "\" direction, clipped analytically to the box
- * instead of generated across its diagonal. Same grammar as the sketch
- * `hatch()` — same angle, same wobbled strokes, same clip-wipe reveal — but for
- * a 720 × 16 wall it emits 162 curves instead of 2 900. That matters here
- * because these paths sit under an *animated* clip and are re-rasterised on
- * every frame of the wipe; six walls at the primitive's cost would not hold 60.
- */
-function hatch45(b: Rect, gap: number, seed: number): string {
-  const out: string[] = [];
-  let i = 0;
-  for (let sx = b.x - b.h; sx <= b.x + b.w; sx += gap, i++) {
-    const s0 = Math.max(0, b.x - sx);
-    const s1 = Math.min(b.h, b.x + b.w - sx);
-    if (s1 - s0 < 1.5) continue;
-    out.push(wobbleLine(sx + s0, b.y + s0, sx + s1, b.y + s1, seed + i * 13, 0.7));
-  }
-  return out.join(" ");
-}
-
-/** A hand-drawn quarter circle: jitter the samples once, then smooth through. */
-function arcD(cx: number, cy: number, rad: number, a0: number, a1: number, seed: number): string {
-  const rnd = rng(seed * 2654435761);
-  const n = 12;
-  const pts: Pt[] = [];
+/** A flat quarter-circle arc, sampled once at module load. */
+function arcD(cx: number, cy: number, rad: number, a0: number, a1: number): string {
+  const n = 10;
+  const pts: Array<[number, number]> = [];
   for (let i = 0; i <= n; i++) {
     const a = a0 + (a1 - a0) * (i / n);
-    const j = (rnd() - 0.5) * 2.2;
-    pts.push([cx + Math.cos(a) * (rad + j), cy + Math.sin(a) * (rad + j)]);
+    pts.push([
+      Math.round((cx + Math.cos(a) * rad) * 10) / 10,
+      Math.round((cy + Math.sin(a) * rad) * 10) / 10,
+    ]);
   }
-  return smooth(pts);
+  return poly(pts);
 }
 
-// ── pieces ───────────────────────────────────────────────────────────────────
+const DOOR_GEO = DOORS.map((d) => ({
+  swing: arcD(d.cx, d.cy, d.rad, d.a0, d.a1),
+  leaf: `M ${d.cx} ${d.cy} L ${d.lx} ${d.ly}`,
+}));
 
-/**
- * Hatch revealed by *translating* an oversized mask path. Motion drops pixel
- * `transformOrigin` on SVG children, so a `scaleX` wipe would open from the
- * middle of the box; a translation has no origin to lose.
- */
-function HatchWipe({
+// ── kit ──────────────────────────────────────────────────────────────────────
+
+function Draw({
+  d,
+  on,
+  stroke,
+  w = 3,
+  delay = 0,
+  dur = 0.6,
+  opacity = 1,
+  cap = "round",
+}: {
+  d: string;
+  on: boolean;
+  stroke: string;
+  w?: number;
+  delay?: number;
+  dur?: number;
+  opacity?: number;
+  cap?: "round" | "butt";
+}) {
+  return (
+    <motion.path
+      d={d}
+      fill="none"
+      stroke={stroke}
+      strokeWidth={w}
+      strokeLinecap={cap}
+      strokeLinejoin="round"
+      pathLength={1}
+      strokeDasharray={1}
+      initial={false}
+      animate={{ strokeDashoffset: on ? 0 : 1, opacity: on ? opacity : 0 }}
+      transition={{
+        strokeDashoffset: { duration: dur, ease: EASE, delay: on ? delay : 0 },
+        opacity: { duration: 0.2, delay: on ? delay : 0 },
+      }}
+    />
+  );
+}
+
+/** Solid poché arriving by sliding a clip rect across the box. */
+function FillWipe({
   box,
   on,
-  gap,
-  seed,
-  stroke,
-  width = 1.3,
-  opacity = 0.5,
+  fill,
   delay = 0,
-  duration = 0.7,
+  dur = 0.7,
+  from = "left",
 }: {
   box: Rect;
   on: boolean;
-  gap: number;
-  seed: number;
-  stroke: string;
-  width?: number;
-  opacity?: number;
+  fill: string;
   delay?: number;
-  duration?: number;
+  dur?: number;
+  from?: "left" | "up";
 }) {
   const uid = useId().replace(/:/g, "");
-  const lines = useMemo(() => hatch45(box, gap, seed), [box, gap, seed]);
-
-  const pad = 12;
-  const ww = box.w + pad * 2;
-  const wipeD = `M ${box.x - pad} ${box.y - pad} H ${box.x + box.w + pad} V ${box.y + box.h + pad} H ${
-    box.x - pad
-  } Z`;
-
   return (
     <g>
       <defs>
-        <clipPath id={`box-${uid}`}>
-          <path d={rectD(box)} />
-        </clipPath>
-        <clipPath id={`wipe-${uid}`}>
-          <motion.path
-            d={wipeD}
+        <clipPath id={`bw-${uid}`}>
+          <motion.rect
+            x={box.x - 1}
+            y={box.y - 1}
+            width={box.w + 2}
+            height={box.h + 2}
             initial={false}
-            animate={{ x: on ? 0 : -ww }}
-            transition={{ duration, ease: EASE, delay: on ? delay : 0 }}
+            animate={from === "left" ? { x: on ? 0 : -box.w - 2 } : { y: on ? 0 : box.h + 2 }}
+            transition={{ duration: dur, ease: EASE, delay: on ? delay : 0 }}
           />
         </clipPath>
       </defs>
-      <g clipPath={`url(#box-${uid})`}>
-        <g clipPath={`url(#wipe-${uid})`}>
-          <path d={lines} fill="none" stroke={stroke} strokeWidth={width} opacity={opacity} />
-        </g>
-      </g>
+      <rect
+        x={box.x}
+        y={box.y}
+        width={box.w}
+        height={box.h}
+        fill={fill}
+        clipPath={`url(#bw-${uid})`}
+      />
     </g>
   );
 }
 
-/** One load-bearing wall: neutral outline at step 1, ember poché at step 2. */
+/** One structural wall: neutral at step 1, emerald poché at step 2, hot at 3. */
 function BearingWall({
   box,
-  d,
   drawn,
   lit,
   hot,
-  seed,
   delay,
 }: {
   box: Rect;
-  d: string;
   drawn: boolean;
   lit: boolean;
   hot: boolean;
-  seed: number;
   delay: number;
 }) {
+  const d = rectD(box);
   return (
     <g>
-      <HatchWipe
-        box={box}
-        on={lit}
-        gap={9}
-        seed={seed + 400}
-        stroke={C.ember}
-        width={1.3}
-        opacity={0.62}
-        delay={delay + 0.14}
-        duration={0.75}
-      />
-      <SketchPath d={d} on={drawn} stroke={LINE} width={2} delay={delay} duration={0.6} />
-      <SketchPath d={d} on={lit} stroke={C.ember} width={2.8} delay={delay} duration={0.55} />
-      {/* Step 3: the two walls that pick up the orphaned load get re-inked. */}
-      <SketchPath d={d} on={hot} stroke={C.ember} width={4.2} delay={0.35} duration={0.5} />
+      <FillWipe box={box} on={lit} fill="rgba(0,168,104,0.55)" delay={delay + 0.12} dur={0.7} />
+      <FillWipe box={box} on={hot} fill="rgba(255,90,60,0.55)" delay={0.4} dur={0.55} />
+      <Draw d={d} on={drawn} stroke={BASE} w={3} delay={delay} dur={0.6} />
+      <Draw d={d} on={lit} stroke={V.emerald} w={4} delay={delay + 0.05} dur={0.55} />
+      <Draw d={d} on={hot} stroke={V.ember} w={5} delay={0.35} dur={0.5} />
+    </g>
+  );
+}
+
+/**
+ * A load arrow that thickens and extends when the load re-routes. Both the
+ * thickening and the extension are one `scale` on a group — no width/height.
+ */
+function LoadArrow({
+  x,
+  y,
+  dir,
+  on,
+  heavy,
+  delay = 0,
+}: {
+  x: number;
+  y: number;
+  dir: 1 | -1;
+  on: boolean;
+  heavy: boolean;
+  delay?: number;
+}) {
+  const uid = useId().replace(/:/g, "");
+  const len = 96;
+  const head = 26;
+  return (
+    <g transform={`translate(${x} ${y}) scale(${dir} 1)`}>
+      <motion.g
+        initial={false}
+        animate={{ scaleX: heavy ? 1.55 : 1, scaleY: heavy ? 1.9 : 1 }}
+        transition={{ duration: 0.6, ease: EASE, delay: heavy ? delay + 0.25 : 0 }}
+        // The arrow must grow from its TAIL, not its centre. motion sets
+        // `transform-box: fill-box` on animated SVG, so px origins are re-based
+        // against this group's own bbox (x 0…len, y -13…13). Percentages are
+        // therefore the honest way to say "tail, vertically centred".
+        style={{ transformOrigin: "0% 50%" }}
+      >
+        <defs>
+          <clipPath id={`bw-a-${uid}`}>
+            <motion.rect
+              x={-2}
+              y={-22}
+              width={len + 6}
+              height={44}
+              initial={false}
+              animate={{ x: on ? 0 : -len - 8 }}
+              transition={{ duration: 0.5, ease: EASE, delay: on ? delay : 0 }}
+            />
+          </clipPath>
+        </defs>
+        <g clipPath={`url(#bw-a-${uid})`}>
+          <rect x={0} y={-4} width={len - head} height={8} fill={V.ember} />
+          <path d={`M ${len - head} -13 L ${len} 0 L ${len - head} 13 Z`} fill={V.ember} />
+        </g>
+      </motion.g>
     </g>
   );
 }
@@ -266,270 +312,151 @@ export function BearingWallPlan({ step }: { step: number }) {
   const lit = step >= 2;
   const removed = step >= 3;
 
-  // Every pencil offset is drawn once, here, and baked into the `d` strings.
-  const geo = useMemo(
-    () => ({
-      walls: WALLS.map((b, i) => wobbleRect(b.x, b.y, b.w, b.h, 120 + i * 17, 1.1, 1.6)),
-      partitions: PARTITIONS.map(([x1, y1, x2, y2], i) =>
-        wobbleLine(x1, y1, x2, y2, 300 + i * 11, 1.1),
-      ),
-      doors: DOORS.map((dr, i) => ({
-        swing: arcD(dr.cx, dr.cy, dr.rad, dr.a0, dr.a1, 500 + i * 23),
-        leaf: wobbleLine(dr.cx, dr.cy, dr.lx, dr.ly, 560 + i * 23, 0.8),
-      })),
-      cracks: CRACKS.map((c, i) => wobblePoly(c, 700 + i * 31, 1.5)),
-    }),
-    [],
-  );
-
   return (
-    <svg viewBox="0 0 860 600" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      {/* ── step 1 · the plan ─────────────────────────────────────────────── */}
+    <svg viewBox="0 0 860 600" preserveAspectRatio="xMidYMid meet" className="w-full h-full">
+      {/* ══ step 1 · the plan ═══════════════════════════════════════════════ */}
 
-      {geo.partitions.map((d, i) => (
-        <SketchPath
+      {PARTITIONS.map(([x1, y1, x2, y2], i) => (
+        <Draw
           key={`p${i}`}
-          d={d}
+          d={`M ${x1} ${y1} L ${x2} ${y2}`}
           on={drawn}
-          stroke={PART}
-          width={5}
+          stroke={DIM}
+          w={6}
           cap="butt"
-          delay={0.45 + i * 0.035}
-          duration={0.35}
+          delay={0.4 + i * 0.06}
+          dur={0.35}
         />
       ))}
-      {geo.doors.map((dr, i) => (
+      {DOOR_GEO.map((dr, i) => (
         <g key={`d${i}`}>
-          <SketchPath d={dr.leaf} on={drawn} stroke={PART} width={2.2} delay={0.9 + i * 0.06} duration={0.25} />
-          <SketchPath
-            d={dr.swing}
-            on={drawn}
-            stroke={FAINT}
-            width={1.4}
-            delay={0.98 + i * 0.06}
-            duration={0.4}
-          />
+          <Draw d={dr.leaf} on={drawn} stroke={DIM} w={3} delay={0.95 + i * 0.06} dur={0.25} />
+          <Draw d={dr.swing} on={drawn} stroke={DIM} w={2} opacity={0.7} delay={1.02 + i * 0.06} dur={0.4} />
         </g>
       ))}
 
-      {/* ── step 3 · the floor area that just lost its support ────────────── */}
+      {/* ══ step 3 · the floor that just lost its support ═══════════════════ */}
 
-      <HatchWipe
-        box={FREED}
-        on={removed}
-        gap={30}
-        seed={880}
-        stroke={C.ember}
-        width={1.4}
-        opacity={0.16}
-        delay={0.45}
-        duration={1}
-      />
+      <FillWipe box={FREED} on={removed} fill="rgba(255,90,60,0.14)" delay={0.45} dur={0.9} />
 
-      {/* ── steps 1–2 · the structure ─────────────────────────────────────── */}
+      {/* ══ steps 1–2 · the structure ═══════════════════════════════════════ */}
 
       {WALLS.map((b, i) =>
         i === REMOVED ? null : (
           <BearingWall
             key={`w${i}`}
             box={b}
-            d={geo.walls[i]}
             drawn={drawn}
             lit={lit}
             hot={removed && INHERIT.includes(i)}
-            seed={120 + i * 17}
             delay={i * 0.07}
           />
         ),
       )}
 
-      {/* The demolished wall. Drawn exactly like its neighbours, then faded out
-          as a group at step 3 — a pure function of `step`, reversible. */}
+      {/* The demolished wall. Drawn like its neighbours, then faded as a group
+          at step 3 — a pure function of `step`, exactly reversible. */}
       <motion.g
         initial={false}
         animate={{ opacity: removed ? 0 : 1 }}
         transition={{ duration: 0.5, ease: EASE, delay: removed ? 0.05 : 0.1 }}
       >
-        <BearingWall
-          box={WALLS[REMOVED]}
-          d={geo.walls[REMOVED]}
-          drawn={drawn}
-          lit={lit}
-          hot={false}
-          seed={120 + REMOVED * 17}
-          delay={REMOVED * 0.07}
-        />
+        <BearingWall box={WALLS[REMOVED]} drawn={drawn} lit={lit} hot={false} delay={REMOVED * 0.07} />
       </motion.g>
 
       {/* …and the dashed ghost it leaves behind. */}
       <motion.path
-        d={geo.walls[REMOVED]}
+        d={rectD(WALLS[REMOVED])}
         fill="none"
-        stroke={C.ember}
-        strokeWidth={2}
+        stroke={V.ember}
+        strokeWidth={3}
         strokeLinecap="round"
-        strokeDasharray="11 9"
+        strokeDasharray="13 11"
         initial={false}
-        animate={{ opacity: removed ? 0.55 : 0 }}
+        animate={{ opacity: removed ? 0.8 : 0 }}
         transition={{ duration: 0.4, ease: EASE, delay: removed ? 0.35 : 0 }}
       />
 
-      {/* Cracks in the slab over the new span. */}
-      {geo.cracks.map((d, i) => (
-        <SketchPath
+      {/* Cracks across the new span. */}
+      {CRACKS.map((c, i) => (
+        <Draw
           key={`c${i}`}
-          d={d}
+          d={poly(c)}
           on={removed}
-          stroke={C.ember}
-          width={2}
-          opacity={0.85}
+          stroke={V.ember}
+          w={3}
+          opacity={0.9}
           delay={0.7 + i * 0.14}
-          duration={0.6}
+          dur={0.6}
         />
       ))}
 
-      {/* Load pushing sideways into the two walls that now carry it. */}
-      <SketchArrow
-        x1={330}
-        y1={132}
-        x2={252}
-        y2={132}
-        seed={911}
-        head={14}
-        on={removed}
-        stroke={C.ember}
-        width={2.4}
-        delay={1.1}
-        duration={0.4}
-      />
-      <SketchArrow
-        x1={690}
-        y1={132}
-        x2={766}
-        y2={132}
-        seed={923}
-        head={14}
-        on={removed}
-        stroke={C.ember}
-        width={2.4}
-        delay={1.2}
-        duration={0.4}
-      />
+      {/* Load re-routing sideways into the two walls that now carry it. */}
+      <LoadArrow x={342} y={140} dir={-1} on={removed} heavy={removed} delay={1.0} />
+      <LoadArrow x={598} y={140} dir={1} on={removed} heavy={removed} delay={1.1} />
 
-      {/* ── step 2 · the bay dimensions ───────────────────────────────────── */}
+      {/* ══ step 2 · the bay dimensions ═════════════════════════════════════ */}
 
       {XS.map((x, i) => (
-        <SketchLine
+        <Draw
           key={`e${i}`}
-          x1={x}
-          y1={452}
-          x2={x}
-          y2={502}
-          seed={620 + i}
-          amp={0.9}
-          on={lit}
-          stroke={FAINT}
-          width={1.2}
-          delay={0.2 + i * 0.04}
-          duration={0.3}
-        />
-      ))}
-      <SketchLine
-        x1={XS[0]}
-        y1={DIM_Y}
-        x2={XS[3]}
-        y2={DIM_Y}
-        seed={651}
-        amp={1}
-        on={lit}
-        stroke={DIM}
-        width={1.5}
-        delay={0.3}
-        duration={0.8}
-      />
-      {XS.map((x, i) => (
-        <SketchLine
-          key={`t${i}`}
-          x1={x - 7}
-          y1={DIM_Y + 7}
-          x2={x + 7}
-          y2={DIM_Y - 7}
-          seed={670 + i}
-          amp={0.6}
+          d={`M ${x} 456 V 504`}
           on={lit}
           stroke={DIM}
-          width={1.6}
-          delay={0.5 + i * 0.05}
-          duration={0.2}
+          w={1.8}
+          delay={0.2 + i * 0.06}
+          dur={0.3}
+        />
+      ))}
+      <Draw d={`M ${XS[0]} ${DIM_Y} H ${XS[3]}`} on={lit} stroke={MID} w={2.5} delay={0.3} dur={0.8} />
+      {XS.map((x, i) => (
+        <Draw
+          key={`t${i}`}
+          d={`M ${x - 8} ${DIM_Y + 8} L ${x + 8} ${DIM_Y - 8}`}
+          on={lit}
+          stroke={MID}
+          w={2.5}
+          delay={0.5 + i * 0.06}
+          dur={0.2}
         />
       ))}
       {BAYS.map((m, i) => (
         <motion.text
           key={`bl${i}`}
           x={(XS[i] + XS[i + 1]) / 2}
-          y={DIM_Y - 13}
-          fill={DIM}
+          y={DIM_Y - 14}
+          fill={MID}
           fontSize={24}
           textAnchor="middle"
           className="font-mono tnum"
           style={{ letterSpacing: "0.06em" }}
           initial={false}
           animate={{ opacity: lit ? 1 : 0 }}
-          transition={{ duration: 0.3, delay: lit ? 0.6 + i * 0.08 : 0 }}
+          transition={{ duration: 0.3, delay: lit ? 0.6 + i * 0.06 : 0 }}
         >
           {`${num(m)} ${t(q.unit, lang)}`}
         </motion.text>
       ))}
 
-      {/* ── step 3 · the span that replaced them ──────────────────────────── */}
+      {/* ══ step 3 · the span that replaced them ════════════════════════════ */}
 
-      <SketchLine
-        x1={XS[1]}
-        y1={502}
-        x2={XS[1]}
-        y2={548}
-        seed={701}
-        amp={0.9}
+      <Draw
+        d={`M ${XS[1]} 504 V 550 M ${XS[3]} 504 V 550`}
         on={removed}
-        stroke="rgba(199,80,47,0.5)"
-        width={1.2}
+        stroke="rgba(255,90,60,0.55)"
+        w={1.8}
         delay={0.9}
-        duration={0.25}
+        dur={0.25}
       />
-      <SketchLine
-        x1={XS[3]}
-        y1={502}
-        x2={XS[3]}
-        y2={548}
-        seed={702}
-        amp={0.9}
-        on={removed}
-        stroke="rgba(199,80,47,0.5)"
-        width={1.2}
-        delay={0.95}
-        duration={0.25}
-      />
-      <SketchLine
-        x1={XS[1]}
-        y1={DIM2_Y}
-        x2={XS[3]}
-        y2={DIM2_Y}
-        seed={711}
-        amp={1}
-        on={removed}
-        stroke={C.ember}
-        width={2}
-        delay={1}
-        duration={0.7}
-      />
+      <Draw d={`M ${XS[1]} ${DIM2_Y} H ${XS[3]}`} on={removed} stroke={V.ember} w={3} delay={1} dur={0.7} />
       <motion.text
         x={(XS[1] + XS[3]) / 2}
-        y={DIM2_Y - 13}
-        fill={C.ember}
+        y={DIM2_Y - 14}
+        fill={V.ember}
         fontSize={28}
         textAnchor="middle"
         className="font-mono tnum"
-        style={{ letterSpacing: "0.06em" }}
+        style={{ letterSpacing: "0.06em", fontWeight: 600 }}
         initial={false}
         animate={{ opacity: removed ? 1 : 0 }}
         transition={{ duration: 0.3, delay: removed ? 1.3 : 0 }}
@@ -537,30 +464,46 @@ export function BearingWallPlan({ step }: { step: number }) {
         {`${num(NEW_SPAN)} ${t(q.unit, lang)}`}
       </motion.text>
 
-      {/* ── step 3 · what happened, in words ──────────────────────────────── */}
+      {/* ══ step 3 · what happened, in words ════════════════════════════════ */}
 
-      <Annotation
-        x={318}
-        y={68}
-        text={t(q.removedLabel, lang)}
-        on={removed}
-        delay={0.5}
-        color={C.ember}
-        size={29}
-        anchor="end"
-        seed={77}
-        leader={{ x: XS[2] - 12, y: 86 }}
-      />
-      <Annotation
+      <motion.g
+        initial={false}
+        animate={{ opacity: removed ? 1 : 0, y: removed ? 0 : -10 }}
+        transition={{ duration: 0.4, ease: EASE, delay: removed ? 0.5 : 0 }}
+      >
+        <path
+          d={`M ${XS[2] - 12} 86 L 330 68`}
+          fill="none"
+          stroke="rgba(255,90,60,0.5)"
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
+        <text
+          x={318}
+          y={74}
+          fill={V.ember}
+          fontSize={29}
+          textAnchor="end"
+          className="font-sans"
+          style={{ fontWeight: 700 }}
+        >
+          {t(q.removedLabel, lang)}
+        </text>
+      </motion.g>
+
+      <motion.text
         x={X0}
-        y={580}
-        text={t(q.loadShift, lang)}
-        on={removed}
-        delay={1.45}
-        color="rgba(244,241,234,0.8)"
-        size={28}
-        anchor="start"
-      />
+        y={584}
+        fill={BASE}
+        fontSize={28}
+        className="font-sans"
+        style={{ fontWeight: 600 }}
+        initial={false}
+        animate={{ opacity: removed ? 1 : 0, y: removed ? 0 : 10 }}
+        transition={{ duration: 0.4, ease: EASE, delay: removed ? 1.45 : 0 }}
+      >
+        {t(q.loadShift, lang)}
+      </motion.text>
     </svg>
   );
 }

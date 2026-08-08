@@ -1,405 +1,266 @@
 "use client";
 
-import { useId, useMemo } from "react";
 import { motion } from "motion/react";
 import { EASE } from "@/deck/types";
 import { useLang } from "@/content/lang";
 import { t } from "@/content/i18n";
 import { S } from "@/content/strings";
-import { C, Hatch, SketchEllipse, SketchPath, wobbleLine, wobbleRect } from "@/ui/sketch";
+import { V } from "@/ui/vivid";
 
 /**
- * VIPCard — chapter 4 opener, paper theme, slot 760 × 470.
+ * VIPCard — chapter 4, hosted by `VipPerks`. Slot is exactly 1600 × 620 stage
+ * pixels; every coordinate below is authored against that box.
  *
- * A membership card drawn the way an architect would draw one: pencil edges,
- * hatched wash, gold only where the club's value sits.
+ * A flat-vector membership card: night/forest face, gold edge, IMARAT issuer
+ * line, and one gold sheen that sweeps across on arrival. The perks then land
+ * beside it as bold white rows, one per click.
  *
- * Step choreography (VipIntro, 2 steps)
- *   0 — the empty slot: four corner registration marks and a dashed ghost of
- *       the card. The right half of the slide reads as "reserved", not blank,
- *       while the title and the gold badge land on the left.
- *   1 — the card flips in on rotateY, its gold edge draws, the wash hatches,
- *       and the face prints itself: issuer line, chip, wordmark, embossed
- *       number row, signature lines, and the club seal. One gold shine passes
- *       across it and is gone. One pass only — a second would read as a casino.
+ * Step map (VipPerks, 6 steps)
+ *   0 — the card is here. It flips in on `rotateY` inside a perspective wrapper
+ *       (a mount animation, so it plays once per visit and never re-fires when
+ *       the presenter steps back into step 0), and a single masked gold sheen
+ *       translates across the face. One pass only.
+ *   1 — perk 01 lands.
+ *   2 — perk 02.
+ *   3 — perk 03.
+ *   4 — perk 04.
+ *   5 — perk 05.
  *
- * Pure function of `step`. Only transform / opacity / strokeDashoffset animate;
- * the shine is a masked gradient rect that translates, never a filter.
+ * Only transform and opacity animate. The sheen is a gradient bar moved by
+ * translateX — never a filter. Shadows are static.
  */
 
-// ── geometry, baked once at module load ─────────────────────────────────────
+const SLOT_W = 1600;
+const SLOT_H = 620;
 
-const CARD = { x: 90, y: 54, w: 580, h: 352 } as const;
-const CX = CARD.x + CARD.w / 2; // 380 — the flip axis
-const CY = CARD.y + CARD.h / 2; // 230
+const CARD = { x: 0, y: 78, w: 640, h: 400 } as const;
+const RAIL = { x: 720, w: 880 } as const;
 
-const INNER = { x: CARD.x + 16, y: CARD.y + 16, w: CARD.w - 32, h: CARD.h - 32 };
-const WASH = { x: CARD.x + 10, y: CARD.y + 10, w: CARD.w - 20, h: CARD.h - 20 };
+const ROW_H = 114;
+const ROW_GAP = 12;
 
-const CHIP = { x: 134, y: 158, w: 86, h: 62 };
-const SEAL = { cx: 578, cy: 336, r: 44 };
+/** Frozen keyframe lists: an inline array is a new reference every render and
+ *  would restart the sweep on an unrelated re-render. */
+const SHEEN_X = [-420, 1020];
+const SHEEN_O = [0, 0.5, 0.5, 0];
+const SHEEN_T = [0, 0.16, 0.68, 1];
 
-/** Drafting corner marks: the slot the card is about to land in. */
-const MARKS = (() => {
-  const a = 30;
-  const o = 20;
-  const l = CARD.x - o;
-  const r = CARD.x + CARD.w + o;
-  const tp = CARD.y - o;
-  const b = CARD.y + CARD.h + o;
-  return [
-    wobbleLine(l, tp, l + a, tp, 201, 0.7),
-    wobbleLine(l, tp, l, tp + a, 202, 0.7),
-    wobbleLine(r, tp, r - a, tp, 203, 0.7),
-    wobbleLine(r, tp, r, tp + a, 204, 0.7),
-    wobbleLine(r, b, r - a, b, 205, 0.7),
-    wobbleLine(r, b, r, b - a, 206, 0.7),
-    wobbleLine(l, b, l + a, b, 207, 0.7),
-    wobbleLine(l, b, l, b - a, 208, 0.7),
-  ].join(" ");
-})();
-
-/** Four groups of four embossed dashes — a card number without inventing one. */
-const NUMBER_ROW = (() => {
-  const parts: string[] = [];
-  let x = 134;
-  for (let g = 0; g < 4; g++) {
-    for (let d = 0; d < 4; d++) {
-      parts.push(wobbleLine(x, 292, x + 13, 292, 301 + g * 7 + d, 0.45));
-      x += 20;
-    }
-    x += 16;
-  }
-  return parts.join(" ");
-})();
-
-/** Where a member signs. Two pencil rules, never a fake name. */
-const NAME_LINES = [
-  wobbleLine(134, 340, 344, 340, 411, 0.9),
-  wobbleLine(134, 368, 274, 368, 412, 0.9),
-].join(" ");
-
-const CHIP_LINES = [
-  wobbleLine(CHIP.x, CHIP.y + 21, CHIP.x + CHIP.w, CHIP.y + 21, 421, 0.5),
-  wobbleLine(CHIP.x, CHIP.y + 42, CHIP.x + CHIP.w, CHIP.y + 42, 422, 0.5),
-  wobbleLine(CHIP.x + 31, CHIP.y, CHIP.x + 31, CHIP.y + CHIP.h, 423, 0.5),
-].join(" ");
-
-/** Milled rim of the seal — twelve short radial ticks. */
-const SEAL_RIM = (() => {
-  const parts: string[] = [];
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * Math.PI * 2;
-    parts.push(
-      wobbleLine(
-        SEAL.cx + Math.cos(a) * 30,
-        SEAL.cy + Math.sin(a) * 30,
-        SEAL.cx + Math.cos(a) * 37,
-        SEAL.cy + Math.sin(a) * 37,
-        501 + i,
-        0.35,
-      ),
-    );
-  }
-  return parts.join(" ");
-})();
-
-/**
- * The shine, as three frozen keyframe lists.
- *
- * Module constants on purpose: an inline array is a new reference on every
- * render, and motion restarts a keyframe animation whose target changed
- * identity — which would re-fire the sweep on an unrelated re-render.
- */
-const SHINE_X = [0, 980];
-const SHINE_O = [0, 0.55, 0.55, 0];
-const SHINE_T = [0, 0.14, 0.7, 1];
-
-// ── a line of card face text ────────────────────────────────────────────────
-
-function Ink({
-  x,
-  y,
-  text,
-  on,
-  delay = 0,
-  size = 24,
-  color = C.ink,
-  anchor = "start",
-  font = "font-sans",
-  tracking,
-  weight,
-}: {
-  x: number;
-  y: number;
-  text: string;
-  on: boolean;
-  delay?: number;
-  size?: number;
-  color?: string;
-  anchor?: "start" | "middle" | "end";
-  font?: string;
-  tracking?: string;
-  weight?: number;
-}) {
+/** The card's contact chip, as flat vector. */
+function ChipGlyph() {
   return (
-    <motion.text
-      x={x}
-      y={y}
-      fill={color}
-      fontSize={size}
-      textAnchor={anchor}
-      letterSpacing={tracking}
-      fontWeight={weight}
-      className={font}
-      initial={false}
-      animate={{ opacity: on ? 1 : 0, y: on ? 0 : 7 }}
-      transition={{ duration: 0.34, ease: EASE, delay: on ? delay : 0 }}
-    >
-      {text}
-    </motion.text>
+    <svg width={86} height={64} viewBox="0 0 86 64" aria-hidden>
+      <rect x={1} y={1} width={84} height={62} rx={12} fill={V.gold} opacity={0.92} />
+      <path
+        d="M0 22H86M0 42H86M31 0V64M55 0V64"
+        stroke={V.night}
+        strokeWidth={2}
+        opacity={0.42}
+      />
+    </svg>
   );
 }
 
-// ── the diagram ─────────────────────────────────────────────────────────────
-
 export function VIPCard({ step }: { step: number }) {
   const lang = useLang();
-  const uid = useId().replace(/:/g, "");
-  const shineId = `vip-shine-${uid}`;
-  const clipId = `vip-clip-${uid}`;
-
-  const on = step >= 1;
-
-  const geo = useMemo(
-    () => ({
-      edge: wobbleRect(CARD.x, CARD.y, CARD.w, CARD.h, 61, 1.8, 3),
-      inner: wobbleRect(INNER.x, INNER.y, INNER.w, INNER.h, 77, 1, 1.5),
-      chip: wobbleRect(CHIP.x, CHIP.y, CHIP.w, CHIP.h, 91, 0.9, 1.5),
-    }),
-    [],
-  );
+  const perks = S.vip.perks.items;
 
   return (
-    <svg viewBox="0 0 760 470" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      <defs>
-        <linearGradient id={shineId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor={C.gold} stopOpacity={0} />
-          <stop offset="0.5" stopColor={C.gold} stopOpacity={1} />
-          <stop offset="1" stopColor={C.gold} stopOpacity={0} />
-        </linearGradient>
-        {/* Inset by 3 px so the gleam never spills past the pencil wobble. */}
-        <clipPath id={clipId}>
-          <rect x={CARD.x + 3} y={CARD.y + 3} width={CARD.w - 6} height={CARD.h - 6} rx={10} />
-        </clipPath>
-      </defs>
-
-      <SketchPath d={MARKS} on stroke={C.ash} width={1.5} opacity={0.5} duration={0.8} />
-
-      {/* The slot, before the card is in it. */}
-      <motion.path
-        d={geo.edge}
-        fill="none"
-        stroke={C.ash}
-        strokeWidth={1.8}
-        strokeDasharray="11 10"
-        strokeLinecap="round"
-        initial={false}
-        animate={{ opacity: on ? 0 : 0.55 }}
-        transition={{ duration: 0.35, ease: EASE }}
-      />
-
-      {/*
-        The flip. Motion writes `transform-box: fill-box` on every animated SVG
-        node, so the rotation axis is the group's own bounding-box centre and a
-        pixel `transform-origin` would be measured from the wrong corner. The
-        anchor rect below is symmetric about (CX, CY), which pins that centre to
-        the middle of the card no matter what else the group ends up containing.
-      */}
-      <motion.g
-        initial={false}
-        animate={{ rotateY: on ? 0 : -80, opacity: on ? 1 : 0, transformPerspective: 1100 }}
-        transition={{
-          rotateY: { duration: 0.8, ease: EASE },
-          opacity: { duration: on ? 0.3 : 0.24 },
+    <div style={{ position: "relative", width: SLOT_W, height: SLOT_H }}>
+      {/* ── the card ─────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: "absolute",
+          left: CARD.x,
+          top: CARD.y,
+          width: CARD.w,
+          height: CARD.h,
+          perspective: 1500,
         }}
       >
-        <rect x={CX - 340} y={CY - 220} width={680} height={440} fill="none" />
+        <motion.div
+          initial={{ rotateY: -74, opacity: 0 }}
+          animate={{ rotateY: 0, opacity: 1 }}
+          transition={{
+            rotateY: { duration: 0.95, ease: EASE },
+            opacity: { duration: 0.34, ease: EASE },
+          }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 34,
+            overflow: "hidden",
+            background:
+              "linear-gradient(138deg, #0A2418 0%, #0B5C3F 54%, #051810 100%)",
+            border: `2px solid ${V.gold}`,
+            boxShadow:
+              "inset 0 0 0 1px rgba(240,178,62,0.30), 0 34px 78px rgba(10,31,20,0.30)",
+          }}
+        >
+          {/* issuer */}
+          <div
+            className="font-mono"
+            style={{
+              position: "absolute",
+              left: 44,
+              top: 42,
+              fontSize: 18,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: V.gold,
+            }}
+          >
+            {t(S.brand.company, lang)}
+          </div>
 
-        <Hatch
-          x={WASH.x}
-          y={WASH.y}
-          w={WASH.w}
-          h={WASH.h}
-          gap={22}
-          angle={45}
-          seed={131}
-          on={on}
-          stroke={C.gold}
-          width={1.4}
-          opacity={0.18}
-          delay={0.28}
-          duration={0.9}
-        />
+          <div style={{ position: "absolute", left: 44, top: 118 }}>
+            <ChipGlyph />
+          </div>
 
-        <SketchPath d={geo.edge} on={on} stroke={C.gold} width={3.2} duration={0.85} />
-        <SketchPath
-          d={geo.inner}
-          on={on}
-          stroke={C.ink}
-          width={1.4}
-          opacity={0.32}
-          delay={0.4}
-          duration={0.6}
-        />
+          <div
+            className="font-display"
+            style={{
+              position: "absolute",
+              left: 44,
+              top: 226,
+              fontSize: 60,
+              lineHeight: 1,
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              color: V.paper,
+            }}
+          >
+            {t(S.chapters.c4.title, lang)}
+          </div>
 
-        {/* The header is two elements on one baseline row, so their widths have
-            to be budgeted against each other: at 20/0.18em the issuer ran to
-            415 and the 54 px product name started at 411. Sized so the pair
-            leaves ~65 px of air, which also absorbs a longer issuer string. */}
-        <Ink
-          x={134}
-          y={116}
-          text={t(S.brand.company, lang)}
-          on={on}
-          delay={0.5}
-          size={18}
-          color={C.ash}
-          font="font-mono"
-          tracking="0.15em"
-        />
-        <Ink
-          x={626}
-          y={132}
-          text={t(S.chapters.c4.title, lang)}
-          on={on}
-          delay={0.58}
-          size={46}
-          anchor="end"
-          font="font-display"
-          weight={500}
-        />
-
-        {/* Chip */}
-        <SketchPath d={geo.chip} on={on} stroke={C.gold} width={2.2} delay={0.62} duration={0.4} />
-        <Hatch
-          x={CHIP.x + 2}
-          y={CHIP.y + 2}
-          w={CHIP.w - 4}
-          h={CHIP.h - 4}
-          gap={8}
-          angle={45}
-          seed={177}
-          on={on}
-          stroke={C.gold}
-          width={1.2}
-          opacity={0.4}
-          delay={0.74}
-          duration={0.45}
-        />
-        <SketchPath
-          d={CHIP_LINES}
-          on={on}
-          stroke={C.gold}
-          width={1.5}
-          opacity={0.8}
-          delay={0.7}
-          duration={0.35}
-        />
-
-        <SketchPath
-          d={NUMBER_ROW}
-          on={on}
-          stroke={C.ink}
-          width={3}
-          opacity={0.6}
-          delay={0.82}
-          duration={0.55}
-        />
-        <SketchPath
-          d={NAME_LINES}
-          on={on}
-          stroke={C.ash}
-          width={1.6}
-          opacity={0.8}
-          delay={0.92}
-          duration={0.45}
-        />
-
-        {/* Club seal */}
-        <SketchEllipse
-          cx={SEAL.cx}
-          cy={SEAL.cy}
-          rx={SEAL.r}
-          seed={211}
-          on={on}
-          stroke={C.gold}
-          width={2.4}
-          delay={0.9}
-          duration={0.5}
-        />
-        <SketchEllipse
-          cx={SEAL.cx}
-          cy={SEAL.cy}
-          rx={30}
-          seed={213}
-          on={on}
-          stroke={C.gold}
-          width={1.6}
-          opacity={0.85}
-          delay={1.02}
-          duration={0.4}
-        />
-        <Hatch
-          x={SEAL.cx - 22}
-          y={SEAL.cy - 22}
-          w={44}
-          h={44}
-          gap={9}
-          angle={45}
-          seed={223}
-          on={on}
-          stroke={C.gold}
-          width={1.3}
-          opacity={0.45}
-          delay={1.12}
-          duration={0.4}
-        />
-        <SketchPath
-          d={SEAL_RIM}
-          on={on}
-          stroke={C.gold}
-          width={1.4}
-          opacity={0.7}
-          delay={1.08}
-          duration={0.4}
-        />
-      </motion.g>
-
-      {/*
-        The shine. A gradient rect inside a static rotated group, moved by
-        translate alone — no filter, no width animation, and deliberately kept
-        outside the flip group so its off-card geometry cannot drag the flip
-        axis away from the middle of the card.
-      */}
-      <g clipPath={`url(#${clipId})`}>
-        <g transform={`rotate(-16 ${CX} ${CY})`}>
-          <motion.rect
-            x={CARD.x - 260}
-            y={CARD.y - 130}
-            width={110}
-            height={CARD.h + 260}
-            fill={`url(#${shineId})`}
-            initial={false}
-            animate={on ? { x: SHINE_X, opacity: SHINE_O } : { x: 0, opacity: 0 }}
-            transition={
-              on
-                ? { duration: 1.05, delay: 1.05, times: SHINE_T, ease: "linear" }
-                : { duration: 0.2 }
-            }
+          <div
+            style={{
+              position: "absolute",
+              left: 44,
+              top: 316,
+              width: 214,
+              height: 4,
+              borderRadius: 4,
+              background: V.gold,
+            }}
           />
-        </g>
-      </g>
-    </svg>
+
+          <div
+            className="font-mono"
+            style={{
+              position: "absolute",
+              left: 44,
+              top: 344,
+              fontSize: 18,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: V.leaf,
+            }}
+          >
+            {t(S.vip.intro.badge, lang)}
+          </div>
+
+          {/* the sheen: a masked gradient bar, moved by translateX alone. The
+              tilt lives on a static parent so motion owns the whole transform
+              on the animated node and cannot drop the rotation mid-sweep. */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 0,
+              top: -160,
+              width: CARD.w,
+              height: CARD.h + 320,
+              transform: "rotate(18deg)",
+              pointerEvents: "none",
+            }}
+          >
+            <motion.div
+              initial={{ x: SHEEN_X[0], opacity: 0 }}
+              animate={{ x: SHEEN_X, opacity: SHEEN_O }}
+              transition={{ duration: 1.15, delay: 0.72, times: SHEEN_T, ease: "linear" }}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: 170,
+                height: "100%",
+                background:
+                  "linear-gradient(90deg, rgba(240,178,62,0) 0%, rgba(255,236,196,0.55) 50%, rgba(240,178,62,0) 100%)",
+              }}
+            />
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ── the perks ────────────────────────────────────────────────────── */}
+      {perks.map((p, i) => {
+        const on = step >= i + 1;
+        return (
+          <motion.div
+            key={i}
+            initial={false}
+            animate={{ opacity: on ? 1 : 0, x: on ? 0 : 34, scale: on ? 1 : 0.97 }}
+            transition={{ duration: 0.46, ease: EASE, delay: on ? i * 0.06 : 0 }}
+            style={{
+              position: "absolute",
+              left: RAIL.x,
+              top: i * (ROW_H + ROW_GAP),
+              width: RAIL.w,
+              height: ROW_H,
+              borderRadius: 22,
+              background: V.paper,
+              border: "1.5px solid rgba(10,31,20,0.09)",
+              boxShadow: "0 16px 40px rgba(10,31,20,0.08)",
+              display: "flex",
+              alignItems: "center",
+              gap: 24,
+              padding: "0 28px",
+            }}
+          >
+            <div
+              className="tnum font-mono"
+              style={{
+                flexShrink: 0,
+                width: 50,
+                height: 50,
+                borderRadius: 14,
+                background: V.gold,
+                color: V.ink,
+                fontSize: 21,
+                display: "grid",
+                placeItems: "center",
+                letterSpacing: "0.02em",
+              }}
+            >
+              {String(i + 1).padStart(2, "0")}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 30,
+                  fontWeight: 600,
+                  lineHeight: 1.14,
+                  letterSpacing: "-0.012em",
+                  color: V.ink,
+                }}
+              >
+                {t(p.t, lang)}
+              </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 21,
+                  fontWeight: 300,
+                  lineHeight: 1.3,
+                  color: V.ash,
+                }}
+              >
+                {t(p.d, lang)}
+              </div>
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
   );
 }

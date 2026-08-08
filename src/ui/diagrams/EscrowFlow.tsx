@@ -1,543 +1,723 @@
 "use client";
 
-import { useMemo } from "react";
 import { motion } from "motion/react";
 import { EASE } from "@/deck/types";
 import { useLang } from "@/content/lang";
 import { t } from "@/content/i18n";
 import { S } from "@/content/strings";
-import {
-  Annotation,
-  C,
-  Hatch,
-  SketchEllipse,
-  SketchLine,
-  SketchPath,
-  SketchPoly,
-  SketchRect,
-  wobbleEllipse,
-  wobbleLine,
-  wobbleRect,
-  type Pt,
-} from "@/ui/sketch";
+import { V } from "@/ui/vivid";
 
 /**
- * EscrowFlow — the mechanism, told as two halves of one drawing.
+ * EscrowFlow — v2 "IMARAT Vivid". Bold flat vector, no pencil, no sketch kit.
  *
- * The vertical rule at x=782 is the diagram's echo of the slide's own divider
- * at stage x=942 (slot origin is x=160, so 942 - 160 = 782). Left of it is the
- * old failure mode; right of it is escrow.
+ * One 1600×740 board, two stacked acts sharing the same left-to-right money
+ * axis, so the eye compares the two routes without being told to.
  *
- * step 0 — empty page.
- * step 1 — the cast draws in, pencil ink, no colour: buyer + half-built tower
- *          and crane on the left; buyer + bank vault + half-built tower and
- *          crane on the right. Ghost (dashed) outlines mark the unbuilt floors.
- * step 2 — OLDIN. Three gold coins run buyer → developer along a straight line.
- *          Then the failure lands: the line is overdrawn in ember, the built
- *          floors fill with grey hatching, an ember ✕ crosses the unbuilt
- *          floors, and the crane dims and its jib droops.
- * step 3 — KEYIN. The left half dims to 0.5 but keeps its failure state. Coins
- *          curve buyer → vault and the vault's money level rises in gold. Three
- *          milestone boxes draw in; each tick turns forest green in sequence and
- *          releases one coin along an arc to the developer, and each arriving
- *          coin completes one floor. Roof closes, crane jib swings back to work.
+ *   step 0 — the cast, unlit: buyer, tower, crane on both rails; the vault
+ *            sits ash-grey and closed. No money anywhere.
+ *   step 1 — BEFORE. Gold tokens run buyer → builder in one straight shot with
+ *            nothing in between.
+ *   step 2 — the failure. That run overdraws in ember, the built floors gray
+ *            out, the crane's jib tilts and dims, an ember bar strikes the
+ *            tower. The only ember in the chapter.
+ *   step 3 — AFTER. Act 1 drops to 0.34 and holds its failure state. Below it
+ *            gold tokens arc into the vault, the money level wipes up, the
+ *            vault turns emerald and its dial spins shut. Three checkpoints
+ *            light emerald in sequence; each one releases a token onward, and
+ *            each arriving token wipes one more floor emerald. The crane
+ *            swings back to work.
  *
- * Pure function of `step`: every `on` is monotonic in `step`, so 3 → 2 leaves the
- * failure state exactly as step 2 built it.
+ * Every `on` is monotonic in `step`, so 3 → 2 leaves the failure exactly as
+ * step 2 built it. Only transform / opacity / clip-path / strokeDashoffset
+ * animate; motion's `x`/`y` on SVG nodes are transforms, not attributes.
  */
 
-// ── geometry, baked at module scope so every array ref is stable ────────────
+/** Authored 1:1 against the 1600×652 slot the slide gives it, so `meet`
+ *  never letterboxes and the drawing keeps the full width of the stage. */
+const W = 1600;
+const H = 652;
 
-type P = [number, number];
+/** Ground line of each act. */
+const TOP = 250;
+const BOT = 590;
 
-/** Quadratic bezier sampled to points — a polyline dense enough to read curved. */
-function qpts(p0: P, c: P, p1: P, n: number): Pt[] {
-  const out: Pt[] = [];
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    const u = 1 - t;
-    out.push([
-      u * u * p0[0] + 2 * u * t * c[0] + t * t * p1[0],
-      u * u * p0[1] + 2 * u * t * c[1] + t * t * p1[1],
-    ]);
-  }
-  return out;
-}
+/** Column centres, shared by both acts. */
+const CX_BUYER = 150;
+const CX_VAULT = 720;
+const CX_BUILD = 1370;
 
-type Lane = { xs: number[]; ys: number[]; ts: number[] };
+/** Where a payment run starts and where its arrowhead lands. */
+const RUN_FROM = CX_BUYER + 74;
+const RUN_TO = CX_BUILD - 176;
+const HEAD = CX_BUILD - 200;
 
-/** The same sampling, split into transform keyframe lists for a travelling coin. */
-function lane(p0: P, c: P, p1: P, n = 12): Lane {
-  const pts = qpts(p0, c, p1, n);
-  return {
-    xs: pts.map((p) => p[0]),
-    ys: pts.map((p) => p[1]),
-    ts: pts.map((_, i) => i / n),
-  };
-}
+const STAGGER = 0.06;
 
-function arcPts(cx: number, cy: number, r: number, a0: number, a1: number, n = 8): Pt[] {
-  const out: Pt[] = [];
-  for (let i = 0; i <= n; i++) {
-    const a = ((a0 + ((a1 - a0) * i) / n) * Math.PI) / 180;
-    out.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
-  }
-  return out;
-}
+const CK_X = [900, 996, 1092];
+/** Certification cadence: checkpoint i lights, then its token leaves. */
+const LIT = [0, 0.8, 1.6];
 
-const GROUND = 272;
-const SPLIT = 782;
+// ── primitives ──────────────────────────────────────────────────────────────
 
-// left half
-const B1 = 128; // buyer
-const T1 = 590; // tower centre
-const M1 = 686; // crane mast
-// right half
-const B2 = 862;
-const V2 = 1128; // vault centre
-const T2 = 1462;
-const M2 = 1552;
-
-const STRAIGHT = lane([176, 205], [338, 205], [500, 205], 8);
-const DEPOSIT_P: [P, P, P] = [[914, 205], [983, 268], [1052, 212]];
-const RELEASE_P: [P, P, P] = [[1204, 200], [1298, 96], [1392, 206]];
-const DEPOSIT = lane(...DEPOSIT_P);
-const RELEASE = lane(...RELEASE_P);
-const DEPOSIT_PTS = qpts(...DEPOSIT_P, 10);
-const RELEASE_PTS = qpts(...RELEASE_P, 10);
-
-const SHOULDER1 = arcPts(B1, GROUND, 36, 180, 360);
-const SHOULDER2 = arcPts(B2, GROUND, 36, 180, 360);
-
-const FADE = [0, 1, 1, 1, 0];
-const FADE_T = [0, 0.08, 0.55, 0.88, 1];
-
-const TICKS = [1231, 1287, 1343];
-const TICK_Y = 222;
-
-/** Head of the straight before-arrow. Drawn twice: ink, then ember on top. */
-const STRAIGHT_HEAD = [
-  wobbleLine(500, 205, 484.5, 198.6, 44, 0.7),
-  wobbleLine(500, 205, 484.5, 211.4, 45, 0.7),
-].join(" ");
-
-/** The ember ✕ over the floors that will never be built. */
-const CROSS_A = wobbleLine(T1 - 26, 126, T1 + 26, 178, 71, 1.4);
-const CROSS_B = wobbleLine(T1 + 26, 126, T1 - 26, 178, 72, 1.4);
-
-/** Vault dial: two spokes crossing the hub, like the handle on a safe. */
-const SPOKES = [45, 135]
-  .map((deg, i) => {
-    const a = (deg * Math.PI) / 180;
-    return wobbleLine(
-      V2 - Math.cos(a) * 22,
-      186 - Math.sin(a) * 22,
-      V2 + Math.cos(a) * 22,
-      186 + Math.sin(a) * 22,
-      61 + i,
-      0.7,
-    );
-  })
-  .join(" ");
-
-// ── small local primitives ─────────────────────────────────────────────────
-
-/** A gold coin carried along a lane by transform keyframes only. */
-function Coin({
-  path,
+/** A stroke that draws itself on. pathLength=1, so dashoffset runs 1 → 0. */
+function Draw({
+  d,
   on,
+  stroke,
+  width = 4,
   delay = 0,
-  duration = 0.95,
-  seed = 5,
-  r = 13,
+  duration = 0.7,
+  opacity = 1,
 }: {
-  path: Lane;
+  d: string;
   on: boolean;
+  stroke: string;
+  width?: number;
   delay?: number;
   duration?: number;
-  seed?: number;
-  r?: number;
+  opacity?: number;
 }) {
-  const outer = useMemo(() => wobbleEllipse(0, 0, r, r, seed, 1.1), [r, seed]);
-  const inner = useMemo(() => wobbleEllipse(0, 0, r * 0.42, r * 0.42, seed + 5, 0.7), [r, seed]);
-
   return (
-    <motion.g
+    <motion.path
+      d={d}
+      fill="none"
+      stroke={stroke}
+      strokeWidth={width}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      pathLength={1}
+      strokeDasharray="1 1"
+      opacity={opacity}
       initial={false}
-      animate={
-        on
-          ? { x: path.xs, y: path.ys, opacity: FADE }
-          : { x: path.xs[0], y: path.ys[0], opacity: 0 }
-      }
-      transition={
-        on
-          ? {
-              x: { duration, delay, times: path.ts, ease: "linear" },
-              y: { duration, delay, times: path.ts, ease: "linear" },
-              opacity: { duration, delay, times: FADE_T, ease: "linear" },
-            }
-          : { duration: 0.25 }
-      }
-    >
-      <path d={outer} fill="none" stroke={C.gold} strokeWidth={2.6} strokeLinecap="round" />
-      <path d={inner} fill="none" stroke={C.gold} strokeWidth={1.6} strokeLinecap="round" opacity={0.75} />
-    </motion.g>
+      animate={{ strokeDashoffset: on ? 0 : 1 }}
+      transition={{ duration: on ? duration : 0.3, ease: EASE, delay: on ? delay : 0 }}
+    />
   );
 }
 
-/** Dashed outline for what has not been built yet. Fades, never draws on. */
-function GhostRect({
+/** Flat block that fills by clip-wipe rather than by growing a height. */
+function FillBlock({
   x,
   y,
   w,
   h,
   on,
+  fill,
+  radius = 0,
   delay = 0,
-  outDelay = 0,
-  seed = 7,
+  duration = 0.55,
 }: {
   x: number;
   y: number;
   w: number;
   h: number;
   on: boolean;
+  fill: string;
+  radius?: number;
   delay?: number;
-  outDelay?: number;
-  seed?: number;
+  duration?: number;
 }) {
-  const d = useMemo(() => wobbleRect(x, y, w, h, seed, 1.6), [x, y, w, h, seed]);
   return (
-    <motion.path
-      d={d}
-      fill="none"
-      stroke={C.ash}
-      strokeWidth={1.8}
-      strokeDasharray="9 8"
-      strokeLinecap="round"
+    <motion.rect
+      x={x}
+      y={y}
+      width={w}
+      height={h}
+      rx={radius}
+      fill={fill}
       initial={false}
-      animate={{ opacity: on ? 0.7 : 0 }}
-      transition={{ duration: 0.4, ease: EASE, delay: on ? delay : outDelay }}
+      animate={{ clipPath: on ? "inset(0% 0% 0% 0%)" : "inset(100% 0% 0% 0%)" }}
+      transition={{ duration, ease: EASE, delay: on ? delay : 0 }}
     />
   );
 }
 
-/** A curved arrow: sampled bezier as a wobbled polyline, plus a wobbled head. */
-function CurveArrow({
-  pts,
+/**
+ * A gold money token carried along a run by transform keyframes only. `bend`
+ * lifts the middle of the run so a deposit arcs instead of sliding.
+ */
+function Token({
+  from,
+  to,
+  y,
   on,
-  stroke = C.ink,
-  width = 2.4,
   delay = 0,
-  duration = 0.8,
-  seed = 5,
-  head = 15,
+  duration = 1,
+  r = 17,
+  bend = 0,
 }: {
-  pts: Pt[];
+  from: number;
+  to: number;
+  y: number;
   on: boolean;
-  stroke?: string;
-  width?: number;
   delay?: number;
   duration?: number;
-  seed?: number;
-  head?: number;
+  r?: number;
+  bend?: number;
 }) {
-  const wings = useMemo(() => {
-    const a = pts[pts.length - 1];
-    const b = pts[pts.length - 2];
-    const ang = Math.atan2(a[1] - b[1], a[0] - b[0]);
-    const w1 = ang + Math.PI - 0.42;
-    const w2 = ang + Math.PI + 0.42;
-    return [
-      wobbleLine(a[0], a[1], a[0] + Math.cos(w1) * head, a[1] + Math.sin(w1) * head, seed + 11, 0.7),
-      wobbleLine(a[0], a[1], a[0] + Math.cos(w2) * head, a[1] + Math.sin(w2) * head, seed + 12, 0.7),
-    ].join(" ");
-  }, [pts, head, seed]);
-
+  const N = 10;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  const ts: number[] = [];
+  for (let i = 0; i <= N; i++) {
+    const p = i / N;
+    xs.push(from + (to - from) * p);
+    ys.push(y + bend * 4 * p * (1 - p));
+    ts.push(p);
+  }
   return (
-    <>
-      <SketchPoly
-        pts={pts}
-        seed={seed}
-        amp={1.1}
-        on={on}
-        stroke={stroke}
-        width={width}
-        delay={delay}
-        duration={duration}
+    <motion.g
+      initial={false}
+      animate={on ? { x: xs, y: ys, opacity: [0, 1, 1, 1, 0] } : { x: xs[0], y: ys[0], opacity: 0 }}
+      transition={
+        on
+          ? {
+              x: { duration, delay, times: ts, ease: "linear" },
+              y: { duration, delay, times: ts, ease: "linear" },
+              opacity: { duration, delay, times: [0, 0.1, 0.6, 0.9, 1], ease: "linear" },
+            }
+          : { duration: 0.24 }
+      }
+    >
+      <circle r={r} fill={V.gold} />
+      <path
+        d={`M ${-r * 0.36} 0 H ${r * 0.36} M 0 ${-r * 0.52} V ${r * 0.52}`}
+        stroke={V.ink}
+        strokeWidth={3}
+        strokeLinecap="round"
+        opacity={0.7}
       />
-      <SketchPath
-        d={wings}
-        on={on}
-        stroke={stroke}
-        width={width}
-        delay={delay + duration * 0.75}
-        duration={0.2}
-      />
-    </>
+    </motion.g>
   );
 }
 
-/** Head + shoulders. */
+/** Buyer: a filled disc over a shoulder arc. Flat silhouette, no outline. */
 function Buyer({
   cx,
-  shoulder,
+  cy,
   on,
   delay = 0,
-  seed = 11,
+  color,
 }: {
   cx: number;
-  shoulder: Pt[];
+  cy: number;
   on: boolean;
   delay?: number;
-  seed?: number;
+  color: string;
 }) {
   return (
-    <g>
-      <SketchEllipse cx={cx} cy={210} rx={18} ry={19} seed={seed} on={on} delay={delay} duration={0.45} width={2.2} />
-      <SketchPoly pts={shoulder} seed={seed + 4} amp={1.2} on={on} delay={delay + 0.12} duration={0.5} width={2.2} />
-    </g>
+    <motion.g
+      initial={false}
+      animate={{ opacity: on ? 1 : 0, scale: on ? 1 : 0.86 }}
+      transition={{ duration: 0.5, ease: EASE, delay: on ? delay : 0 }}
+      style={{ transformOrigin: `${cx}px ${cy}px` }}
+    >
+      <circle cx={cx} cy={cy - 30} r={21} fill={color} />
+      <path d={`M ${cx - 36} ${cy + 32} a 36 36 0 0 1 72 0 Z`} fill={color} />
+    </motion.g>
   );
 }
 
-/** Built floors + the dashed ghost of the floors still owed. */
-function TowerShell({
+/**
+ * Tower: four stacked slabs sitting on `base`. The bottom `built` are solid,
+ * the rest are dashed ghosts of what is still owed. `fillTo` slabs carry an
+ * emerald clip-wipe on top, one per released payment.
+ */
+function Tower({
   cx,
+  base,
   on,
-  ghostOn = true,
   delay = 0,
-  ghostOutDelay = 0,
-  seed = 21,
+  built,
+  outline,
+  frozen = false,
+  fillTo = 0,
+  fillDelays = [],
 }: {
   cx: number;
+  base: number;
   on: boolean;
-  ghostOn?: boolean;
   delay?: number;
-  ghostOutDelay?: number;
-  seed?: number;
+  built: number;
+  outline: string;
+  frozen?: boolean;
+  fillTo?: number;
+  fillDelays?: number[];
 }) {
-  const x = cx - 64;
+  const w = 148;
+  const x = cx - w / 2;
+  const sh = 34;
+  const gap = 6;
   return (
     <g>
-      <SketchRect x={x} y={196} w={128} h={76} seed={seed} on={on} delay={delay} duration={0.6} width={2.2} />
-      <SketchLine x1={x} y1={221} x2={x + 128} y2={221} seed={seed + 7} on={on} delay={delay + 0.24} duration={0.35} width={1.5} opacity={0.5} />
-      <SketchLine x1={x} y1={247} x2={x + 128} y2={247} seed={seed + 8} on={on} delay={delay + 0.32} duration={0.35} width={1.5} opacity={0.5} />
-      <GhostRect
-        x={x}
-        y={120}
-        w={128}
-        h={74}
-        on={on && ghostOn}
-        delay={delay + 0.4}
-        outDelay={ghostOutDelay}
-        seed={seed + 9}
-      />
+      {[0, 1, 2, 3].map((i) => {
+        const y = base - (i + 1) * sh - i * gap;
+        const done = i < built;
+        return (
+          <g key={i}>
+            <motion.rect
+              x={x}
+              y={y}
+              width={w}
+              height={sh}
+              rx={5}
+              fill={done ? (frozen ? "#C6D3CB" : V.paper3) : "none"}
+              stroke={done ? "none" : outline}
+              strokeWidth={done ? 0 : 3}
+              strokeDasharray={done ? undefined : "12 10"}
+              strokeLinecap="round"
+              initial={false}
+              animate={{ opacity: on ? (done ? 1 : 0.5) : 0, scale: on ? 1 : 0.92 }}
+              transition={{ duration: 0.5, ease: EASE, delay: on ? delay + i * STAGGER : 0 }}
+              style={{ transformOrigin: `${cx}px ${base}px` }}
+            />
+            {i < fillTo && (
+              <FillBlock
+                x={x}
+                y={y}
+                w={w}
+                h={sh}
+                radius={5}
+                on={on}
+                fill={V.emerald}
+                delay={fillDelays[i] ?? delay}
+                duration={0.5}
+              />
+            )}
+          </g>
+        );
+      })}
     </g>
   );
 }
 
-/** Mast, jib, tie-backs, hook. The jib is its own group so it can droop. */
+/** Crane: mast plus a jib that can tilt and dim when the work stops. */
 function Crane({
   mx,
+  base,
   on,
   delay = 0,
-  seed = 41,
+  color,
   dim = false,
   jibDeg = 0,
   fxDelay = 0,
 }: {
   mx: number;
+  base: number;
   on: boolean;
   delay?: number;
-  seed?: number;
+  color: string;
   dim?: boolean;
   jibDeg?: number;
   fxDelay?: number;
 }) {
+  const topY = base - 226;
   return (
     /* Two nested groups on purpose: "has it appeared" and "has it stopped" are
-       separate opacity timelines. Folded into one node, a jump straight to
-       step 2 would hold the crane at 0 until the dim delay elapsed. */
+       separate timelines, so a jump straight to step 2 does not hold the crane
+       invisible until the dim delay has elapsed. */
     <motion.g
       initial={false}
       animate={{ opacity: on ? 1 : 0 }}
-      transition={{ duration: 0.3, ease: EASE, delay: on ? delay : 0 }}
+      transition={{ duration: 0.4, ease: EASE, delay: on ? delay : 0 }}
     >
       <motion.g
         initial={false}
-        animate={{ opacity: dim ? 0.28 : 1 }}
+        animate={{ opacity: dim ? 0.3 : 1 }}
         transition={{ duration: 0.5, ease: EASE, delay: dim ? fxDelay : 0 }}
       >
-      {/* mast, with two lattice ticks so it does not read as a flagpole */}
-      <SketchLine x1={mx} y1={GROUND} x2={mx} y2={104} seed={seed} on={on} delay={delay} duration={0.55} width={2.2} />
-      <SketchLine x1={mx - 7} y1={214} x2={mx + 7} y2={214} seed={seed + 6} on={on} delay={delay + 0.3} duration={0.2} width={1.5} opacity={0.6} />
-      <SketchLine x1={mx - 7} y1={160} x2={mx + 7} y2={160} seed={seed + 7} on={on} delay={delay + 0.34} duration={0.2} width={1.5} opacity={0.6} />
-      <SketchLine x1={mx} y1={104} x2={mx} y2={70} seed={seed + 8} on={on} delay={delay + 0.16} duration={0.25} width={2} />
-      <motion.g
-        initial={false}
-        animate={{ rotate: jibDeg }}
-        transition={{ duration: 0.7, ease: EASE, delay: fxDelay }}
-        style={{ transformOrigin: `${mx}px 104px` }}
-      >
-        {/* long working jib to the left, short counter-jib with a weight right */}
-        <SketchLine x1={mx - 78} y1={104} x2={mx + 26} y2={104} seed={seed + 1} on={on} delay={delay + 0.2} duration={0.45} width={2.2} />
-        <SketchLine x1={mx} y1={70} x2={mx - 70} y2={104} seed={seed + 2} on={on} delay={delay + 0.3} duration={0.3} width={1.6} opacity={0.75} />
-        <SketchLine x1={mx} y1={70} x2={mx + 22} y2={104} seed={seed + 3} on={on} delay={delay + 0.34} duration={0.3} width={1.6} opacity={0.75} />
-        <SketchRect x={mx + 12} y={97} w={15} h={13} seed={seed + 9} amp={0.7} on={on} delay={delay + 0.4} duration={0.25} width={1.8} />
-        <SketchLine x1={mx - 56} y1={104} x2={mx - 56} y2={146} seed={seed + 4} on={on} delay={delay + 0.42} duration={0.3} width={1.6} />
-        <SketchRect x={mx - 62} y={146} w={12} h={10} seed={seed + 5} amp={0.7} on={on} delay={delay + 0.5} duration={0.25} width={1.6} />
+        <Draw d={`M ${mx} ${base} V ${topY}`} on={on} stroke={color} width={5} delay={delay} duration={0.55} />
+        <motion.g
+          initial={false}
+          animate={{ rotate: jibDeg }}
+          transition={{ duration: 0.7, ease: EASE, delay: fxDelay }}
+          style={{ transformOrigin: `${mx}px ${topY}px` }}
+        >
+          <Draw
+            d={`M ${mx - 106} ${topY} H ${mx + 34}`}
+            on={on}
+            stroke={color}
+            width={5}
+            delay={delay + 0.18}
+            duration={0.4}
+          />
+          <Draw
+            d={`M ${mx - 74} ${topY} V ${topY + 48}`}
+            on={on}
+            stroke={color}
+            width={3.5}
+            delay={delay + 0.34}
+            duration={0.25}
+          />
+          <motion.rect
+            x={mx + 22}
+            y={topY - 10}
+            width={20}
+            height={20}
+            rx={4}
+            fill={color}
+            initial={false}
+            animate={{ opacity: on ? 1 : 0, scale: on ? 1 : 0.6 }}
+            transition={{ duration: 0.3, ease: EASE, delay: on ? delay + 0.42 : 0 }}
+            style={{ transformOrigin: `${mx + 32}px ${topY}px` }}
+          />
         </motion.g>
       </motion.g>
     </motion.g>
   );
 }
 
-/** Milestone checkbox: ash outline, then a forest box + check when certified. */
-function Milestone({
+/** Checkpoint: ash outline square that flips to solid emerald with a tick. */
+function Checkpoint({
   x,
+  y,
   on,
-  boxDelay,
-  litDelay,
-  seed,
+  lit,
+  delay = 0,
+  litDelay = 0,
 }: {
   x: number;
+  y: number;
   on: boolean;
-  boxDelay: number;
-  litDelay: number;
-  seed: number;
+  lit: boolean;
+  delay?: number;
+  litDelay?: number;
 }) {
-  const check = useMemo(
-    () =>
-      [
-        wobbleLine(x + 6, TICK_Y + 14, x + 11, TICK_Y + 20, seed + 21, 0.8),
-        wobbleLine(x + 11, TICK_Y + 20, x + 20, TICK_Y + 6, seed + 22, 0.8),
-      ].join(" "),
-    [x, seed],
-  );
+  const s = 46;
+  const o = `${x + s / 2}px ${y + s / 2}px`;
   return (
     <g>
-      <SketchRect x={x} y={TICK_Y} w={26} h={26} seed={seed} amp={1.1} on={on} delay={boxDelay} duration={0.35} width={1.8} stroke={C.ash} />
-      <SketchRect x={x} y={TICK_Y} w={26} h={26} seed={seed} amp={1.1} on={on} delay={litDelay} duration={0.3} width={2.8} stroke={C.forest} />
-      <SketchPath d={check} on={on} stroke={C.leaf} width={3.4} delay={litDelay + 0.12} duration={0.3} />
+      <motion.rect
+        x={x}
+        y={y}
+        width={s}
+        height={s}
+        rx={12}
+        fill="none"
+        stroke={V.ash}
+        strokeWidth={3}
+        initial={false}
+        animate={{ opacity: on ? 0.55 : 0, scale: on ? 1 : 0.78 }}
+        transition={{ duration: 0.4, ease: EASE, delay: on ? delay : 0 }}
+        style={{ transformOrigin: o }}
+      />
+      <motion.rect
+        x={x}
+        y={y}
+        width={s}
+        height={s}
+        rx={12}
+        fill={V.emerald}
+        initial={false}
+        animate={{ opacity: lit ? 1 : 0, scale: lit ? 1 : 0.68 }}
+        transition={{ duration: 0.42, ease: EASE, delay: lit ? litDelay : 0 }}
+        style={{ transformOrigin: o }}
+      />
+      <Draw
+        d={`M ${x + 13} ${y + 24} l 8 9 l 14 -18`}
+        on={lit}
+        stroke={V.paper}
+        width={4.5}
+        delay={litDelay + 0.16}
+        duration={0.28}
+      />
     </g>
   );
 }
 
-// ── the diagram ────────────────────────────────────────────────────────────
+/** Mono column label. */
+function Label({
+  x,
+  y,
+  text,
+  on,
+  delay = 0,
+  color = V.ash,
+  size = 23,
+}: {
+  x: number;
+  y: number;
+  text: string;
+  on: boolean;
+  delay?: number;
+  color?: string;
+  size?: number;
+}) {
+  return (
+    <motion.text
+      x={x}
+      y={y}
+      textAnchor="middle"
+      fill={color}
+      fontSize={size}
+      letterSpacing="0.14em"
+      className="font-mono"
+      initial={false}
+      animate={{ opacity: on ? 1 : 0, y: on ? 0 : 8 }}
+      transition={{ duration: 0.42, ease: EASE, delay: on ? delay : 0 }}
+      style={{ textTransform: "uppercase" }}
+    >
+      {text}
+    </motion.text>
+  );
+}
+
+// ── the diagram ─────────────────────────────────────────────────────────────
 
 export function EscrowFlow({ step }: { step: number }) {
   const lang = useLang();
   const e = S.escrow.what;
 
-  const cast = step >= 1;
-  const before = step >= 2;
+  const cast = step >= 0;
+  const before = step >= 1;
+  const failed = step >= 2;
   const after = step >= 3;
 
-  return (
-    <svg viewBox="0 0 1600 340" preserveAspectRatio="xMidYMid meet" className="w-full h-full">
-      {/* the split, echoing the slide's own divider at stage x=942 */}
-      <SketchLine
-        x1={SPLIT}
-        y1={26}
-        x2={SPLIT}
-        y2={318}
-        seed={31}
-        amp={1.4}
-        on={cast}
-        stroke="rgba(43,42,40,0.16)"
-        width={1.5}
-        delay={0.05}
-        duration={0.7}
-      />
+  const arrowAt = (y: number) => `M ${HEAD} ${y} l -26 -15 M ${HEAD} ${y} l -26 15`;
 
-      {/* ─────────── OLDIN — money goes straight to the developer ─────────── */}
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ width: "100%", height: "100%" }}
+    >
+      {/* ── ACT 1 · money straight to the builder ────────────────────────── */}
       <motion.g
         initial={false}
-        animate={{ opacity: after ? 0.5 : 1 }}
-        transition={{ duration: 0.6, ease: EASE, delay: after ? 0.2 : 0 }}
+        animate={{ opacity: after ? 0.34 : 1 }}
+        transition={{ duration: 0.6, ease: EASE, delay: after ? 0.15 : 0 }}
       >
-        <SketchLine x1={54} y1={GROUND} x2={742} y2={GROUND} seed={5} on={cast} stroke={C.ash} width={1.5} opacity={0.4} delay={0.05} duration={0.8} />
+        <Label x={CX_BUYER + 10} y={TOP - 176} text={t(e.beforeLabel, lang)} on={before} size={24} />
 
-        <Annotation x={390} y={48} text={t(e.beforeLabel, lang)} on={before} delay={0.05} color={C.ash} size={32} anchor="middle" />
+        <Draw d={`M 34 ${TOP} H ${CX_BUILD + 208}`} on={cast} stroke={V.paper3} width={4} delay={0.04} duration={0.8} />
 
-        <Buyer cx={B1} shoulder={SHOULDER1} on={cast} delay={0.12} seed={11} />
-        <TowerShell cx={T1} on={cast} delay={0.3} seed={21} />
-        <Crane mx={M1} on={cast} delay={0.42} seed={41} dim={before} jibDeg={before ? 5 : 0} fxDelay={before ? 2.8 : 0} />
+        <Buyer cx={CX_BUYER} cy={TOP - 36} on={cast} delay={0.1} color={V.ink} />
 
-        {/* the payment run, then the same stroke overdrawn in ember */}
-        <SketchLine x1={176} y1={205} x2={500} y2={205} seed={33} on={before} width={2.4} delay={0.15} duration={0.9} />
-        <SketchPath d={STRAIGHT_HEAD} on={before} width={2.4} delay={0.8} duration={0.2} />
-        <SketchLine x1={176} y1={205} x2={500} y2={205} seed={33} on={before} stroke={C.ember} width={3.4} delay={2.55} duration={0.55} />
-        <SketchPath d={STRAIGHT_HEAD} on={before} stroke={C.ember} width={3.4} delay={3.0} duration={0.2} />
+        {/* the run, then the same stroke overdrawn in ember when it fails */}
+        <Draw d={`M ${RUN_FROM} ${TOP - 128} H ${RUN_TO}`} on={before} stroke={V.ink} width={4} delay={0.1} duration={0.85} />
+        <Draw d={arrowAt(TOP - 128)} on={before} stroke={V.ink} width={4} delay={0.82} duration={0.2} />
+        <Draw d={`M ${RUN_FROM} ${TOP - 128} H ${RUN_TO}`} on={failed} stroke={V.ember} width={6} delay={0.1} duration={0.6} />
+        <Draw d={arrowAt(TOP - 128)} on={failed} stroke={V.ember} width={6} delay={0.56} duration={0.2} />
 
-        <Coin path={STRAIGHT} on={before} delay={0.4} duration={1.0} seed={71} />
-        <Coin path={STRAIGHT} on={before} delay={0.85} duration={1.0} seed={73} />
-        <Coin path={STRAIGHT} on={before} delay={1.3} duration={1.0} seed={75} />
-
-        {/* frozen: grey hatching over what was built, ember ✕ over what was not */}
-        <Hatch x={528} y={198} w={124} h={72} on={before} gap={10} seed={81} stroke={C.ash} width={1.5} opacity={0.6} delay={2.75} duration={0.7} direction="up" />
-        <SketchPath d={CROSS_A} on={before} stroke={C.ember} width={4} delay={2.95} duration={0.28} />
-        <SketchPath d={CROSS_B} on={before} stroke={C.ember} width={4} delay={3.15} duration={0.28} />
-
-        <Annotation x={B1} y={306} text={t(e.buyer, lang)} on={cast} delay={0.5} color={C.ash} size={26} anchor="middle" />
-        <Annotation x={T1} y={306} text={t(e.builder, lang)} on={cast} delay={0.58} color={C.ash} size={26} anchor="middle" />
-      </motion.g>
-
-      {/* ─────────── KEYIN — the vault holds it until a stage is certified ── */}
-      <g>
-        <SketchLine x1={818} y1={GROUND} x2={1586} y2={GROUND} seed={9} on={cast} stroke={C.ash} width={1.5} opacity={0.4} delay={0.1} duration={0.8} />
-
-        <Annotation x={1191} y={48} text={t(e.afterLabel, lang)} on={after} delay={0.05} color={C.forest} size={32} anchor="middle" />
-
-        <Buyer cx={B2} shoulder={SHOULDER2} on={cast} delay={0.5} seed={13} />
-
-        {/* the vault: ink at step 1, overdrawn forest once escrow is the story */}
-        <SketchRect x={1058} y={140} w={140} h={132} seed={51} on={cast} delay={0.62} duration={0.7} width={2.4} />
-        <SketchLine x1={1058} y1={168} x2={1076} y2={168} seed={57} on={cast} delay={0.9} duration={0.25} width={1.8} opacity={0.7} />
-        <SketchLine x1={1058} y1={244} x2={1076} y2={244} seed={58} on={cast} delay={0.96} duration={0.25} width={1.8} opacity={0.7} />
-
-        {/* money level rising inside the vault */}
-        <Hatch x={1068} y={214} w={120} h={50} on={after} gap={11} seed={59} stroke={C.gold} width={1.8} opacity={0.7} delay={0.9} duration={1.3} direction="up" />
-
-        <SketchRect x={1058} y={140} w={140} h={132} seed={51} on={after} delay={0.15} duration={0.7} width={3.4} stroke={C.forest} />
-        <SketchEllipse cx={V2} cy={186} rx={27} ry={27} seed={53} on={cast} delay={0.86} duration={0.45} width={2.2} />
-        <SketchEllipse cx={V2} cy={186} rx={27} ry={27} seed={53} on={after} delay={0.5} duration={0.4} width={3.2} stroke={C.forest} />
-        <SketchPath d={SPOKES} on={cast} width={2} delay={1.0} duration={0.35} opacity={0.85} />
-
-        <TowerShell cx={T2} on={cast} ghostOn={!after} delay={0.74} ghostOutDelay={4.2} seed={23} />
-        <Crane mx={M2} on={cast} delay={0.86} seed={43} jibDeg={after ? -6 : 0} fxDelay={after ? 4.3 : 0} />
-
-        {/* deposit: buyer → vault, curved, and the coins pile up as hatching */}
-        <CurveArrow pts={DEPOSIT_PTS} on={after} stroke={C.forest} width={2.4} delay={0.15} duration={0.75} seed={63} />
-        <Coin path={DEPOSIT} on={after} delay={0.45} duration={0.9} seed={77} />
-        <Coin path={DEPOSIT} on={after} delay={0.8} duration={0.9} seed={79} />
-        <Coin path={DEPOSIT} on={after} delay={1.15} duration={0.9} seed={83} />
-
-        {/* release: only against a certified stage */}
-        <CurveArrow pts={RELEASE_PTS} on={after} stroke={C.forest} width={2.4} delay={1.9} duration={0.7} seed={65} />
-        {TICKS.map((x, i) => (
-          <Milestone
-            key={x}
-            x={x}
-            on={after}
-            boxDelay={1.6 + i * 0.08}
-            litDelay={2.1 + i * 0.6}
-            seed={91 + i * 3}
+        {[0, 1, 2].map((i) => (
+          <Token
+            key={i}
+            from={RUN_FROM + 22}
+            to={HEAD}
+            y={TOP - 128}
+            on={before}
+            delay={0.34 + i * 0.34}
           />
         ))}
-        {TICKS.map((x, i) => (
-          <Coin key={`c${x}`} path={RELEASE} on={after} delay={2.25 + i * 0.6} duration={0.7} seed={101 + i * 4} r={12} />
+
+        <Tower cx={CX_BUILD} base={TOP} on={cast} delay={0.24} built={2} outline={V.ash} frozen={failed} />
+        <Crane
+          mx={CX_BUILD + 126}
+          base={TOP}
+          on={cast}
+          delay={0.34}
+          color={V.ash}
+          dim={failed}
+          jibDeg={failed ? 7 : 0}
+          fxDelay={failed ? 0.75 : 0}
+        />
+
+        {/* the strike: one ember bar across the frozen floors */}
+        <motion.rect
+          x={CX_BUILD - 98}
+          y={TOP - 84}
+          width={196}
+          height={20}
+          rx={10}
+          fill={V.ember}
+          initial={false}
+          animate={{ opacity: failed ? 1 : 0, scaleX: failed ? 1 : 0 }}
+          transition={{ duration: 0.44, ease: EASE, delay: failed ? 1 : 0 }}
+          style={{ transformOrigin: `${CX_BUILD}px ${TOP - 74}px` }}
+        />
+
+        <Label x={CX_BUYER} y={TOP + 52} text={t(e.buyer, lang)} on={cast} delay={0.3} />
+        <Label x={CX_BUILD} y={TOP + 52} text={t(e.builder, lang)} on={cast} delay={0.4} />
+      </motion.g>
+
+      {/* ── ACT 2 · the vault holds it until a stage is certified ────────── */}
+      <g>
+        <Label
+          x={CX_BUYER + 10}
+          y={BOT - 232}
+          text={t(e.afterLabel, lang)}
+          on={after}
+          color={V.emerald}
+          size={24}
+        />
+
+        <Draw d={`M 34 ${BOT} H ${CX_BUILD + 208}`} on={cast} stroke={V.paper3} width={4} delay={0.08} duration={0.8} />
+
+        <Buyer cx={CX_BUYER} cy={BOT - 36} on={cast} delay={0.16} color={V.ink} />
+
+        {/* deposit: buyer → vault */}
+        <Draw
+          d={`M ${RUN_FROM} ${BOT - 74} H ${CX_VAULT - 122}`}
+          on={after}
+          stroke={V.emerald}
+          width={4}
+          delay={0.08}
+          duration={0.55}
+        />
+        {[0, 1, 2].map((i) => (
+          <Token
+            key={`d${i}`}
+            from={RUN_FROM + 22}
+            to={CX_VAULT - 126}
+            y={BOT - 74}
+            on={after}
+            delay={0.26 + i * 0.26}
+            duration={0.8}
+            bend={-56}
+          />
         ))}
 
-        {/* each released payment finishes one floor */}
-        <SketchRect x={T2 - 64} y={171} w={128} h={25} seed={111} amp={1.2} on={after} delay={2.85} duration={0.4} width={2.6} stroke={C.forest} />
-        <SketchRect x={T2 - 64} y={146} w={128} h={25} seed={114} amp={1.2} on={after} delay={3.45} duration={0.4} width={2.6} stroke={C.forest} />
-        <SketchRect x={T2 - 64} y={121} w={128} h={25} seed={117} amp={1.2} on={after} delay={4.05} duration={0.4} width={2.6} stroke={C.forest} />
-        <SketchLine x1={T2 - 72} y1={117} x2={T2 + 72} y2={117} seed={121} on={after} delay={4.4} duration={0.4} width={3.2} stroke={C.forest} />
+        {/* the vault */}
+        <motion.rect
+          x={CX_VAULT - 104}
+          y={BOT - 168}
+          width={208}
+          height={168}
+          rx={22}
+          fill={V.paper2}
+          stroke={V.ash}
+          strokeWidth={3}
+          initial={false}
+          animate={{ opacity: cast ? 1 : 0, scale: cast ? 1 : 0.9 }}
+          transition={{ duration: 0.5, ease: EASE, delay: cast ? 0.3 : 0 }}
+          style={{ transformOrigin: `${CX_VAULT}px ${BOT - 84}px` }}
+        />
 
-        <Annotation x={B2} y={306} text={t(e.buyer, lang)} on={cast} delay={0.66} color={C.ash} size={26} anchor="middle" />
-        <Annotation x={V2} y={306} text={t(e.bank, lang)} on={cast} delay={0.74} color={C.ash} size={26} anchor="middle" />
-        <Annotation x={1300} y={306} text={t(e.milestone, lang)} on={after} delay={1.7} color={C.forest} size={23} anchor="middle" />
-        <Annotation x={T2} y={306} text={t(e.builder, lang)} on={cast} delay={0.82} color={C.ash} size={26} anchor="middle" />
+        {/* the money level rising inside it */}
+        <FillBlock
+          x={CX_VAULT - 92}
+          y={BOT - 80}
+          w={184}
+          h={68}
+          radius={12}
+          on={after}
+          fill={V.gold}
+          delay={0.72}
+          duration={0.7}
+        />
+
+        {/* protected: the shell goes emerald and the dial spins shut */}
+        <motion.rect
+          x={CX_VAULT - 104}
+          y={BOT - 168}
+          width={208}
+          height={168}
+          rx={22}
+          fill="none"
+          stroke={V.emerald}
+          strokeWidth={6}
+          initial={false}
+          animate={{ opacity: after ? 1 : 0 }}
+          transition={{ duration: 0.44, ease: EASE, delay: after ? 0.62 : 0 }}
+        />
+        <motion.g
+          initial={false}
+          animate={{ opacity: cast ? 1 : 0, rotate: after ? 90 : 0 }}
+          transition={{ duration: 0.7, ease: EASE, delay: after ? 0.72 : 0.42 }}
+          style={{ transformOrigin: `${CX_VAULT}px ${BOT - 118}px` }}
+        >
+          <circle
+            cx={CX_VAULT}
+            cy={BOT - 118}
+            r={34}
+            fill="none"
+            stroke={after ? V.emerald : V.ash}
+            strokeWidth={5}
+          />
+          <path
+            d={`M ${CX_VAULT - 22} ${BOT - 140} L ${CX_VAULT + 22} ${BOT - 96} M ${CX_VAULT + 22} ${BOT - 140} L ${CX_VAULT - 22} ${BOT - 96}`}
+            stroke={after ? V.emerald : V.ash}
+            strokeWidth={5}
+            strokeLinecap="round"
+          />
+        </motion.g>
+
+        {/* release: only against a certified stage */}
+        <Draw
+          d={`M ${CX_VAULT + 122} ${BOT - 128} H ${RUN_TO}`}
+          on={after}
+          stroke={V.emerald}
+          width={4}
+          delay={1.45}
+          duration={0.6}
+        />
+        <Draw d={arrowAt(BOT - 128)} on={after} stroke={V.emerald} width={4} delay={1.95} duration={0.2} />
+
+        {CK_X.map((x, i) => (
+          <Checkpoint
+            key={x}
+            x={x}
+            y={BOT - 74}
+            on={after}
+            lit={after}
+            delay={0.9 + i * STAGGER}
+            litDelay={1.7 + LIT[i]}
+          />
+        ))}
+        <Label
+          x={CK_X[1] + 23}
+          y={BOT + 52}
+          text={t(e.milestone, lang)}
+          on={after}
+          delay={1.7}
+          color={V.emerald}
+          size={21}
+        />
+
+        {LIT.map((d, i) => (
+          <Token
+            key={`r${i}`}
+            from={CX_VAULT + 130}
+            to={HEAD}
+            y={BOT - 128}
+            on={after}
+            delay={2.02 + d}
+            duration={0.72}
+            bend={-42}
+            r={16}
+          />
+        ))}
+
+        <Tower
+          cx={CX_BUILD}
+          base={BOT}
+          on={cast}
+          delay={0.4}
+          built={2}
+          outline={V.emerald}
+          fillTo={4}
+          fillDelays={[2.6, 2.6, 2.66 + LIT[1], 2.66 + LIT[2]]}
+        />
+        <Crane
+          mx={CX_BUILD + 126}
+          base={BOT}
+          on={cast}
+          delay={0.5}
+          color={V.emerald}
+          jibDeg={after ? -7 : 0}
+          fxDelay={after ? 3.4 : 0}
+        />
+
+        <Label x={CX_BUYER} y={BOT + 52} text={t(e.buyer, lang)} on={cast} delay={0.44} />
+        <Label
+          x={CX_VAULT}
+          y={BOT - 196}
+          text={t(e.bank, lang)}
+          on={cast}
+          delay={0.52}
+          color={after ? V.emerald : V.ash}
+        />
+        <Label x={CX_BUILD} y={BOT + 52} text={t(e.builder, lang)} on={cast} delay={0.6} />
       </g>
     </svg>
   );
