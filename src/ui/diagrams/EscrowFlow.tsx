@@ -487,7 +487,7 @@ export function EscrowFlow({ step }: { step: number }) {
         animate={{ opacity: after ? 0.34 : 1 }}
         transition={{ duration: 0.6, ease: EASE, delay: after ? 0.15 : 0 }}
       >
-        <Label x={CX_BUYER + 10} y={TOP - 176} text={t(e.beforeLabel, lang)} on={before} size={24} />
+        <Label x={CX_BUYER + 10} y={TOP - 154} text={t(e.beforeLabel, lang)} on={before} size={26} />
 
         <Draw d={`M 34 ${TOP} H ${CX_BUILD + 208}`} on={cast} stroke={V.paper3} width={4} delay={0.04} duration={0.8} />
 
@@ -555,14 +555,19 @@ export function EscrowFlow({ step }: { step: number }) {
 
         <Buyer cx={CX_BUYER} cy={BOT - 36} on={cast} delay={0.16} color={V.ink} />
 
-        {/* deposit: buyer → vault */}
-        <Draw
-          d={`M ${RUN_FROM} ${BOT - 74} H ${CX_VAULT - 122}`}
-          on={after}
+        {/* deposit: buyer → vault — curved to match the token arc (bend=-56) */}
+        <motion.path
+          d={`M ${RUN_FROM} ${BOT - 74} Q ${(RUN_FROM + CX_VAULT - 122) / 2} ${BOT - 74 - 56} ${CX_VAULT - 122} ${BOT - 74}`}
+          fill="none"
           stroke={V.emerald}
-          width={4}
-          delay={0.08}
-          duration={0.55}
+          strokeWidth={4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          pathLength={1}
+          strokeDasharray="1 1"
+          initial={false}
+          animate={{ strokeDashoffset: after ? 0 : 1 }}
+          transition={{ duration: after ? 0.55 : 0.3, ease: EASE, delay: after ? 0.08 : 0 }}
         />
         {[0, 1, 2].map((i) => (
           <Token
@@ -591,6 +596,21 @@ export function EscrowFlow({ step }: { step: number }) {
           animate={{ opacity: cast ? 1 : 0, scale: cast ? 1 : 0.9 }}
           transition={{ duration: 0.5, ease: EASE, delay: cast ? 0.3 : 0 }}
           style={{ transformOrigin: `${CX_VAULT}px ${BOT - 84}px` }}
+        />
+
+        {/* vault inner glow — gold rim that pulses in when money is inside */}
+        <motion.rect
+          x={CX_VAULT - 104}
+          y={BOT - 168}
+          width={208}
+          height={168}
+          rx={22}
+          fill="none"
+          stroke={V.gold}
+          strokeWidth={14}
+          initial={false}
+          animate={{ opacity: after ? 0.15 : 0 }}
+          transition={{ duration: 0.44, ease: EASE, delay: after ? 0.72 : 0 }}
         />
 
         {/* the money level rising inside it */}
@@ -627,15 +647,11 @@ export function EscrowFlow({ step }: { step: number }) {
           style={{ transformOrigin: `${CX_VAULT}px ${BOT - 118}px` }}
         >
           {/* A six-spoke vault wheel with a hub. Two spokes on a ring read as
-              a cancel glyph — the one thing this door must not say. */}
-          <circle
-            cx={CX_VAULT}
-            cy={BOT - 118}
-            r={36}
-            fill="none"
-            stroke={after ? V.emerald : V.ash}
-            strokeWidth={5}
-          />
+              a cancel glyph — the one thing this door must not say.
+              Ash layer is always present; emerald layer fades in at after. */}
+
+          {/* ash wheel — always rendered so back-navigation never flashes */}
+          <circle cx={CX_VAULT} cy={BOT - 118} r={36} fill="none" stroke={V.ash} strokeWidth={5} />
           {[0, 60, 120].map((deg) => {
             const a = (deg * Math.PI) / 180;
             const dx = Math.cos(a) * 30;
@@ -644,13 +660,37 @@ export function EscrowFlow({ step }: { step: number }) {
               <path
                 key={deg}
                 d={`M ${CX_VAULT - dx} ${BOT - 118 - dy} L ${CX_VAULT + dx} ${BOT - 118 + dy}`}
-                stroke={after ? V.emerald : V.ash}
+                stroke={V.ash}
                 strokeWidth={5}
                 strokeLinecap="round"
               />
             );
           })}
-          <circle cx={CX_VAULT} cy={BOT - 118} r={10} fill={after ? V.emerald : V.ash} />
+          <circle cx={CX_VAULT} cy={BOT - 118} r={10} fill={V.ash} />
+
+          {/* emerald wheel — layered on top, fades in when after */}
+          <motion.g
+            initial={false}
+            animate={{ opacity: after ? 1 : 0 }}
+            transition={{ duration: 0.44, ease: EASE, delay: after ? 0.62 : 0 }}
+          >
+            <circle cx={CX_VAULT} cy={BOT - 118} r={36} fill="none" stroke={V.emerald} strokeWidth={5} />
+            {[0, 60, 120].map((deg) => {
+              const a = (deg * Math.PI) / 180;
+              const dx = Math.cos(a) * 30;
+              const dy = Math.sin(a) * 30;
+              return (
+                <path
+                  key={deg}
+                  d={`M ${CX_VAULT - dx} ${BOT - 118 - dy} L ${CX_VAULT + dx} ${BOT - 118 + dy}`}
+                  stroke={V.emerald}
+                  strokeWidth={5}
+                  strokeLinecap="round"
+                />
+              );
+            })}
+            <circle cx={CX_VAULT} cy={BOT - 118} r={10} fill={V.emerald} />
+          </motion.g>
         </motion.g>
 
         {/* release: only against a certified stage */}
