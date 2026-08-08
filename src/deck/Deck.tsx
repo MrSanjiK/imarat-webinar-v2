@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Stage } from "./Stage";
 import { SlideBoundary } from "./SlideBoundary";
 import { VideoPool } from "./VideoPool";
+import { LightboxLayer, LightboxProvider, type LightboxItem } from "./Lightbox";
 import { Overview } from "./Overview";
 import { Chrome } from "./Chrome";
 import { makeReducer, parseHash, toHash, type DeckState } from "./state";
@@ -37,11 +38,17 @@ export function Deck() {
   const [state, dispatch] = useReducer(reducer, { i: 0, step: 0, dir: 1 } as DeckState);
   const [overview, setOverview] = useState(false);
   const [blackout, setBlackout] = useState(false);
+  const [lightbox, setLightbox] = useState<LightboxItem | null>(null);
   const [idle, setIdle] = useState(true);
   const { lang, toggle: toggleLang } = useLangCtx();
 
   const lastKey = useRef(0);
   const restored = useRef(false);
+  // Read inside the key handler without re-subscribing it per open/close.
+  const lightboxRef = useRef(lightbox);
+  useEffect(() => {
+    lightboxRef.current = lightbox;
+  }, [lightbox]);
   const slide = deck[state.i];
 
   // ── restore position ───────────────────────────────────────────────────────
@@ -123,6 +130,13 @@ export function Deck() {
       if (!intent) return;
       e.preventDefault();
 
+      // An open lightbox absorbs every deck intent: the next clicker press
+      // closes it, never advances the slide hidden behind it.
+      if (lightboxRef.current) {
+        setLightbox(null);
+        return;
+      }
+
       // Most presenter remotes emit a press twice within a few tens of ms.
       const now = performance.now();
       if (intent === "fwd" || intent === "back") {
@@ -185,6 +199,9 @@ export function Deck() {
 
   const onPointer = (e: React.MouseEvent) => {
     if (overview) return;
+    // Clicks on the lightbox's own surfaces stop propagation; anything that
+    // still reaches here (e.g. the native video controls) must not navigate.
+    if (lightbox) return;
     const ratio = e.clientX / window.innerWidth;
     act(ratio > 0.35 ? "fwd" : "back");
   };
@@ -198,28 +215,30 @@ export function Deck() {
     >
       <Stage>
         <VideoPool>
-          <div
-            className="absolute inset-0 overflow-hidden"
-            style={{ background: dark ? "#1c1b19" : "#f4f1ea" }}
-          >
-            <AnimatePresence mode="sync" custom={state.dir} initial={false}>
-              <motion.div
-                key={slide.id}
-                custom={state.dir}
-                variants={variants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: DUR, ease: EASE }}
-                className="absolute inset-0"
-                style={{ width: STAGE_W }}
-              >
-                <SlideBoundary title={t(slide.label, lang)} dark={dark}>
-                  <slide.Component step={state.step} active />
-                </SlideBoundary>
-              </motion.div>
-            </AnimatePresence>
-          </div>
+          <LightboxProvider value={setLightbox}>
+            <div
+              className="absolute inset-0 overflow-hidden"
+              style={{ background: dark ? "#1c1b19" : "#f4f1ea" }}
+            >
+              <AnimatePresence mode="sync" custom={state.dir} initial={false}>
+                <motion.div
+                  key={slide.id}
+                  custom={state.dir}
+                  variants={variants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: DUR, ease: EASE }}
+                  className="absolute inset-0"
+                  style={{ width: STAGE_W }}
+                >
+                  <SlideBoundary title={t(slide.label, lang)} dark={dark}>
+                    <slide.Component step={state.step} active />
+                  </SlideBoundary>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </LightboxProvider>
 
           <Chrome
             deck={deck}
@@ -243,6 +262,12 @@ export function Deck() {
                 }}
                 onClose={() => setOverview(false)}
               />
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {lightbox && (
+              <LightboxLayer item={lightbox} onClose={() => setLightbox(null)} />
             )}
           </AnimatePresence>
 

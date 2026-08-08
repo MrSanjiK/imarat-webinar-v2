@@ -24,6 +24,7 @@ import {
 import { C, Counter, SketchLine } from "@/ui/sketch";
 import { FloorPriceLadder } from "@/ui/diagrams/FloorPriceLadder";
 import { InstallmentVariants } from "@/ui/diagrams/InstallmentVariants";
+import { useLightbox } from "@/deck/Lightbox";
 import { ChapterOpener } from "./common";
 
 /** Chapter 6 — the ask. Everything before this was argument; this chapter is
@@ -441,6 +442,7 @@ function PlanCard({
 export function OfferCta({ step }: SlideProps) {
   const lang = useLang();
   const o = S.offer.cta;
+  const openLightbox = useLightbox();
 
   return (
     <Slide grid={false}>
@@ -476,6 +478,11 @@ export function OfferCta({ step }: SlideProps) {
               background: "#F4F1EA",
               border: `1.5px solid rgba(43,42,40,0.16)`,
               borderRadius: 10,
+              cursor: "zoom-in",
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              openLightbox({ kind: "image", src: "/media/qr/telegram.svg", bg: "paper" });
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}

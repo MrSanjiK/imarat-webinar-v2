@@ -33,12 +33,16 @@ export type Placement = {
   z?: number;
   fit?: "cover" | "contain";
   opacity?: number;
+  /** Native transport controls + pointer events. Lightbox mode. */
+  controls?: boolean;
 };
 
 type Ctx = {
   place: (id: VideoId, p: Placement | null) => void;
   seek: (id: VideoId, t: number) => void;
   el: (id: VideoId) => HTMLVideoElement | null;
+  /** Current placement, so an override can hand the exact state back. */
+  get: (id: VideoId) => Placement | null;
 };
 
 const PoolCtx = createContext<Ctx | null>(null);
@@ -76,7 +80,7 @@ export function VideoPool({ children }: { children: React.ReactNode }) {
         cur.x === p.x && cur.y === p.y && cur.w === p.w && cur.h === p.h &&
         cur.playing === p.playing && cur.muted === p.muted &&
         cur.opacity === p.opacity && cur.z === p.z && cur.radius === p.radius &&
-        cur.fit === p.fit && cur.loop === p.loop
+        cur.fit === p.fit && cur.loop === p.loop && cur.controls === p.controls
       ) {
         return prev;
       }
@@ -90,6 +94,15 @@ export function VideoPool({ children }: { children: React.ReactNode }) {
   }, []);
 
   const el = useCallback((id: VideoId) => els.current[id] ?? null, []);
+
+  // Mirror of `slots` with a stable identity, so `get` (and therefore the
+  // context object) does not change on every placement — a `get` that closed
+  // over state would re-run the lightbox's takeover effect in a loop.
+  const slotsRef = useRef(slots);
+  useEffect(() => {
+    slotsRef.current = slots;
+  }, [slots]);
+  const get = useCallback((id: VideoId) => slotsRef.current[id] ?? null, []);
 
   // Drive playback from declared state. A rejected play() is normal when the
   // presenter has not interacted yet; it must never surface as an error.
@@ -140,7 +153,7 @@ export function VideoPool({ children }: { children: React.ReactNode }) {
     };
   }, [attach]);
 
-  const ctx = useMemo<Ctx>(() => ({ place, seek, el }), [place, seek, el]);
+  const ctx = useMemo<Ctx>(() => ({ place, seek, el, get }), [place, seek, el, get]);
 
   return (
     <PoolCtx.Provider value={ctx}>
@@ -167,6 +180,7 @@ export function VideoPool({ children }: { children: React.ReactNode }) {
                 transition: `opacity ${DUR}s cubic-bezier(${EASE.join(",")})`,
                 backgroundColor: "#141312",
                 willChange: "transform, opacity",
+                pointerEvents: s?.controls ? "auto" : "none",
               }}
             >
               <video
@@ -179,6 +193,7 @@ export function VideoPool({ children }: { children: React.ReactNode }) {
                 playsInline
                 preload="auto"
                 loop={s?.loop ?? true}
+                controls={s?.controls ?? false}
                 disablePictureInPicture
                 style={{
                   width: "100%",

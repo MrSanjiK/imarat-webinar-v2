@@ -3,6 +3,7 @@
 import { STAGE_H, STAGE_W, type SlideProps } from "@/deck/types";
 import { Reveal } from "@/deck/Reveal";
 import { VideoSlot } from "@/deck/VideoPool";
+import { VideoExpand, useLightbox } from "@/deck/Lightbox";
 import { useLang } from "@/content/lang";
 import { billions, t } from "@/content/i18n";
 import { S } from "@/content/strings";
@@ -214,6 +215,7 @@ export function ReadyProcess({ step }: SlideProps) {
 export function ReadyStudio({ step }: SlideProps) {
   const lang = useLang();
   const s = S.ready.studio;
+  const openLightbox = useLightbox();
 
   // Phone-shaped frame, drawn in pencil. The portrait clip fills it exactly.
   const px = 1352;
@@ -264,6 +266,7 @@ export function ReadyStudio({ step }: SlideProps) {
           duration={1}
         />
       </svg>
+      {step >= 1 && <VideoExpand id="studio-tour" x={px} y={py} w={pw} h={ph} radius={26} />}
 
       <At x={px} y={py + ph + 44} w={pw} z={20}>
         <Reveal at={1} step={step}>
@@ -291,7 +294,13 @@ export function ReadyStudio({ step }: SlideProps) {
       {/* Floor plan sits on the paper like a printed sheet. */}
       <At x={gx} y={gy} w={pw} z={5}>
         <Reveal at={2} step={step} y={20}>
-          <div>
+          <div
+            style={{ cursor: "zoom-in" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              openLightbox({ kind: "image", src: "/media/plans/studio-21-23.webp", bg: "paper" });
+            }}
+          >
             <div style={{ height: gh, overflow: "hidden" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

@@ -3,6 +3,7 @@
 import { STAGE_H, STAGE_W, type SlideProps } from "@/deck/types";
 import { Reveal, Stagger } from "@/deck/Reveal";
 import { VideoSlot } from "@/deck/VideoPool";
+import { ExpandCorner, VideoExpand } from "@/deck/Lightbox";
 import { useLang } from "@/content/lang";
 import { num, t } from "@/content/i18n";
 import { S } from "@/content/strings";
@@ -135,6 +136,7 @@ export function Quake1966({ step }: SlideProps) {
       {/* Height matches the slot above; the timecode hangs 30 px under it and
           has to clear the progress rail. */}
       <Monitor x={900} y={188} w={880} h={690} label={`${N.quake1966.date} · ${N.quake1966.time}`} on={step >= 1} />
+      {step >= 1 && <VideoExpand id="archive-1966-a" x={900} y={188} w={880} h={690} />}
 
       <At x={M.left} y={M.top + 40} w={640}>
         <Reveal at={0} step={step} y={16}>
@@ -562,6 +564,7 @@ export function QuakeTurkey({ step }: SlideProps) {
             "linear-gradient(90deg, rgba(20,19,18,0.94) 0%, rgba(20,19,18,0.86) 44%, rgba(20,19,18,0.7) 100%)",
         }}
       />
+      {step >= 1 && <ExpandCorner item={{ kind: "video", id: "turkey-long" }} />}
 
       <At x={M.left} y={M.top + 20} w={720} z={10}>
         <Reveal at={0} step={step} y={18}>
@@ -687,6 +690,7 @@ export function QuakeVibro({ step }: SlideProps) {
         z={8}
       />
       <Monitor x={vx} y={vy} w={vw} h={vh} on={step >= 1} />
+      {step >= 1 && <VideoExpand id="vibro" x={vx} y={vy} w={vw} h={vh} radius={8} />}
 
       <At x={M.left} y={M.top + 30} w={620}>
         <Reveal at={0} step={step} y={16}>

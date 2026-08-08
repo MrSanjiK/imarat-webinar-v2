@@ -7,6 +7,7 @@ import { useLang } from "@/content/lang";
 import { t, type L } from "@/content/i18n";
 import { At, Backdrop, Body, Caption, Kicker, M, Rule, Slide, Title, tone } from "@/ui/layout";
 import { SketchLine } from "@/ui/sketch";
+import { ExpandCorner } from "@/deck/Lightbox";
 
 /**
  * Slide shapes used more than once. Anything that appears exactly once lives in
@@ -39,6 +40,7 @@ export function ChapterOpener({
   return (
     <Slide theme={theme} grid={false}>
       {image && <Backdrop src={image} theme={theme} scrim="left" opacity={theme === "dark" ? 0.5 : 0.35} />}
+      {image && <ExpandCorner item={{ kind: "image", src: image }} light={theme === "dark"} />}
 
       {/* The giant numeral, bled off the right edge. */}
       <motion.div
@@ -115,6 +117,7 @@ export function ShowcaseSlide({
   return (
     <Slide theme={theme} grid={false}>
       <Backdrop src={image} theme={theme} scrim="bottom" position={position} />
+      <ExpandCorner item={{ kind: "image", src: image }} light={theme === "dark"} />
 
       {/* Bottom-anchored: the block grows upward, so a body that wraps to three
           lines in Cyrillic where it took two in Latin can't push the last line

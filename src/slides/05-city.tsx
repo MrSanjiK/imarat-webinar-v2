@@ -19,6 +19,7 @@ import {
 } from "@/ui/layout";
 import { C, SketchRect } from "@/ui/sketch";
 import { InfraMap } from "@/ui/diagrams/InfraMap";
+import { useLightbox } from "@/deck/Lightbox";
 import { ChapterOpener, ShowcaseSlide } from "./common";
 
 /** Chapter 5 — the project itself. Five full-bleed renders back to back, then
@@ -129,6 +130,7 @@ const LIFE = [
 export function CityLife({ step }: SlideProps) {
   const lang = useLang();
   const c = S.city.life;
+  const openLightbox = useLightbox();
 
   const cols = 4;
   const cell = 372;
@@ -161,6 +163,11 @@ export function CityLife({ step }: SlideProps) {
                   overflow: "hidden",
                   borderRadius: 6,
                   background: C.paper2,
+                  cursor: "zoom-in",
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openLightbox({ kind: "image", src: `/media/lifestyle/${k}.webp` });
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -263,6 +270,7 @@ const PLAN_FILES = ["studio-21-23", "1r-38-8", "2r-52-7", "2r-58-3", "2r-62-1"] 
 export function CityPlans({ step }: SlideProps) {
   const lang = useLang();
   const c = S.city.plans;
+  const openLightbox = useLightbox();
   const focus = step - 1; // step 0 = all quiet, steps 1..5 = one plan each
 
   const cell = 300;
@@ -297,7 +305,13 @@ export function CityPlans({ step }: SlideProps) {
                     deep white bands top and bottom. Left transparent, the
                     multiply blend drops each plan straight onto the paper and
                     the leftover area is simply paper. */}
-                <div style={{ width: cell, height: 330, overflow: "hidden" }}>
+                <div
+                  style={{ width: cell, height: 330, overflow: "hidden", cursor: "zoom-in" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openLightbox({ kind: "image", src: `/media/plans/${f}.webp`, bg: "paper" });
+                  }}
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`/media/plans/${f}.webp`}
@@ -370,6 +384,7 @@ export function CityPlans({ step }: SlideProps) {
 export function CityCatalog({ step }: SlideProps) {
   const lang = useLang();
   const c = S.city.catalog;
+  const openLightbox = useLightbox();
   const pages = ["03", "07", "11", "15", "19"];
 
   // The catalog "pages" are 1600 × 562 — landscape spreads, 2.85 : 1. Fanned as
@@ -414,6 +429,11 @@ export function CityCatalog({ step }: SlideProps) {
                 background: "#fff",
                 transform: `rotate(${(2 - i) * 0.8}deg)`,
                 boxShadow: "0 18px 48px rgba(0,0,0,0.34)",
+                cursor: "zoom-in",
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                openLightbox({ kind: "image", src: `/media/catalog/page-${p}.webp` });
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -8,6 +8,7 @@ import { t } from "@/content/i18n";
 import { S } from "@/content/strings";
 import { At, Body, Caption, Kicker, M, Rule, Slide, Title } from "@/ui/layout";
 import { C, SketchRect } from "@/ui/sketch";
+import { useLightbox } from "@/deck/Lightbox";
 
 /**
  * The first thing 500 people see. It has to look printed, not rendered: a
@@ -15,6 +16,7 @@ import { C, SketchRect } from "@/ui/sketch";
  */
 export function Cover({ step }: SlideProps) {
   const lang = useLang();
+  const openLightbox = useLightbox();
 
   const frameX = 1108;
   const frameY = 176;
@@ -72,6 +74,11 @@ export function Cover({ step }: SlideProps) {
             inset: 0,
             overflow: "hidden",
             background: C.paper2,
+            cursor: "zoom-in",
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            openLightbox({ kind: "image", src: "/media/renders/hero.webp" });
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
