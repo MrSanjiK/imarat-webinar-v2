@@ -100,6 +100,18 @@ export const S = {
       formulaNote: "Massani kamaytir — kuchni kamaytirasan.",
       result: "Devorlar 2–4 barobar yengil",
     },
+    brickWeight: {
+      title: "Gʻisht — koʻrinmas ogʻirlik",
+      body: "Bitta gʻisht yengil koʻrinadi. Biroq butun bino — boshqa hisob.",
+      singleTitle: "1 ta gʻisht",
+      singleMass: "~3.25 kg",
+      buildingTitle: "12-qavatli binoda",
+      brickCount: "ta gʻisht",
+      totalTitle: "Faqat devorlar ogʻirligi",
+      totalUnit: "tonna",
+      vs: "Gazoblok bilan",
+      lighter: "2–4 barobar yengil",
+    },
     bearing: {
       title: "Yuk koʻtaruvchi devorga tegib boʻlmaydi",
       body:

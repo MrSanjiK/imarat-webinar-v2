@@ -23,6 +23,7 @@ import { CountUp, Glow, Mesh, V, Wipe } from "@/ui/vivid";
 import { FloorPriceLadder } from "@/ui/diagrams/FloorPriceLadder";
 import { InstallmentVariants } from "@/ui/diagrams/InstallmentVariants";
 import { ExpandCorner, useLightbox } from "@/deck/Lightbox";
+import { FestiveParticles } from "@/ui/FestiveParticles";
 import { ChapterOpener } from "./common";
 
 /**
@@ -202,6 +203,7 @@ export function OfferFirstDay({ step }: SlideProps) {
           facade on the right to grey. */}
       <Backdrop src="/media/renders/render-016.webp" theme="paper" scrim="left" />
       <ExpandCorner item={{ kind: "image", src: "/media/renders/render-016.webp" }} light={false} />
+      <FestiveParticles on={step >= 2} />
 
       <At x={M.left} y={200} w={860} z={10}>
         <Reveal at={0} step={step} y={16}>
@@ -271,6 +273,7 @@ export function OfferInstallments({ step }: SlideProps) {
 
   return (
     <Slide>
+      <Backdrop src="/media/renders/render-009.webp" theme="paper" scrim="none" opacity={0.55} />
       <Glow x={1560} y={880} r={420} color="240,178,62" opacity={0.16} />
 
       <At x={M.left} y={116} w={900}>

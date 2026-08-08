@@ -27,6 +27,9 @@ export const N = {
     sovietRebar: "A1 / A2 / A3",
     modernRebar: "A500S",
     bearingWallSpacing: [3, 6] as const, // metres
+    building12fBricks: 250_000,
+    building12fBrickTonnes: 812,
+    building12fAeratedTonnes: 230,
   },
 
   turkey: {

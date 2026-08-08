@@ -12,6 +12,7 @@ import { CountUp, Glow, Mesh, V } from "@/ui/vivid";
 import { BonusStack } from "@/ui/diagrams/BonusStack";
 import { FivePlusOne } from "@/ui/diagrams/FivePlusOne";
 import { VIPCard } from "@/ui/diagrams/VIPCard";
+import { FestiveParticles } from "@/ui/FestiveParticles";
 import { ChapterOpener } from "./common";
 
 /**
@@ -32,7 +33,7 @@ export function VipOpen({ step }: SlideProps) {
       step={step}
       title={S.chapters.c4.title}
       lead={S.chapters.c4.lead}
-      image="/media/renders/render-011.webp"
+      image="/media/vip-banner.png"
     />
   );
 }
@@ -256,6 +257,7 @@ export function VipBonuses({ step }: SlideProps) {
     <Slide grid={false}>
       <Mesh variant="paper" />
       <Glow x={300} y={760} r={430} color="0,168,104" opacity={0.14} />
+      <FestiveParticles on={step >= 6} />
 
       <At x={M.left} y={252} w={440}>
         <Reveal at={0} step={step} y={22}>
@@ -293,6 +295,7 @@ export function VipFivePlusOne({ step }: SlideProps) {
     <Slide grid={false}>
       <Mesh variant="paper" />
       <Glow x={1220} y={560} r={520} color="240,178,62" opacity={0.16} />
+      <FestiveParticles on={step >= 3} />
 
       <At x={M.left} y={252} w={470}>
         <Reveal at={0} step={step} y={16}>

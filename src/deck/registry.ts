@@ -5,6 +5,7 @@ import { Cover } from "@/slides/00-cover";
 import {
   Quake1966,
   QuakeBearing,
+  QuakeBrickWeight,
   QuakeClose,
   QuakeLab,
   QuakeMass,
@@ -130,6 +131,14 @@ export const DECK: SlideDef[] = [
     theme: "dark",
     label: S.quake.mass.title,
     Component: QuakeMass,
+  },
+  {
+    id: "q-brick-weight",
+    chapter: 1,
+    steps: 4,
+    theme: "dark",
+    label: S.quake.brickWeight.title,
+    Component: QuakeBrickWeight,
   },
   {
     id: "q-bearing",
@@ -310,7 +319,7 @@ export const DECK: SlideDef[] = [
   {
     id: "ci-master",
     chapter: 5,
-    steps: 2,
+    steps: 1,
     theme: "dark",
     // The slide's own title is "Sergeli City", which is right for the hero shot
     // and wrong for the overview: there it sits directly under a chapter heading
@@ -332,7 +341,7 @@ export const DECK: SlideDef[] = [
   {
     id: "ci-night",
     chapter: 5,
-    steps: 2,
+    steps: 1,
     theme: "dark",
     label: S.city.night.title,
     assets: [render("005")],
@@ -341,7 +350,7 @@ export const DECK: SlideDef[] = [
   {
     id: "ci-mahalla",
     chapter: 5,
-    steps: 2,
+    steps: 1,
     theme: "dark",
     label: S.city.mahalla.title,
     assets: [render("013")],
@@ -350,7 +359,7 @@ export const DECK: SlideDef[] = [
   {
     id: "ci-park",
     chapter: 5,
-    steps: 2,
+    steps: 1,
     theme: "dark",
     label: S.city.park.title,
     assets: [render("030")],

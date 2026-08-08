@@ -473,6 +473,153 @@ export function QuakeMass({ step }: SlideProps) {
   );
 }
 
+// ── 05b · Brick weight ──────────────────────────────────────────────────────
+
+/**
+ * Steps
+ *   0 — title, rule, body.
+ *   1 — single brick SVG + ~3.25 kg label.
+ *   2 — 12-floor building outline + brick count counts up.
+ *   3 — total weight 812 t vs 230 t (gazoblok).
+ */
+export function QuakeBrickWeight({ step }: SlideProps) {
+  const lang = useLang();
+  const q = S.quake.brickWeight;
+
+  return (
+    <Slide theme={TH} grid={false}>
+      <Mesh variant="night" />
+      <Glow x={1300} y={500} r={500} color="240,178,62" opacity={0.13} />
+      <Glow x={200} y={800} r={340} color="0,168,104" opacity={0.10} />
+
+      {/* Left column — text */}
+      <At x={M.left} y={168} w={600}>
+        <Reveal at={0} step={step} y={20}>
+          <Title theme={TH} size={52} style={{ letterSpacing: "-0.025em", maxWidth: 580 }}>
+            {t(q.title, lang)}
+          </Title>
+        </Reveal>
+        <Reveal at={0} step={step} delay={0.14} style={{ marginTop: 28 }}>
+          <Rule w={130} color={V.gold} thickness={4} delay={0.2} />
+        </Reveal>
+        <Reveal at={0} step={step} delay={0.28} style={{ marginTop: 32 }}>
+          <Body theme={TH} size={27} color={PAPER_2} style={{ maxWidth: 560 }}>
+            {t(q.body, lang)}
+          </Body>
+        </Reveal>
+      </At>
+
+      {/* Step 1 — single brick */}
+      <At x={M.left} y={520} w={600}>
+        <Reveal at={1} step={step} y={18}>
+          <div style={{ display: "flex", alignItems: "center", gap: 36 }}>
+            {/* Brick SVG */}
+            <svg width="140" height="68" viewBox="0 0 140 68" fill="none">
+              <rect x="1" y="1" width="138" height="66" rx="6" fill="rgba(220,80,50,0.18)" stroke="#E05032" strokeWidth="2" />
+              {/* Mortar lines */}
+              <line x1="1" y1="34" x2="139" y2="34" stroke="#E05032" strokeWidth="1" strokeDasharray="4 4" strokeOpacity="0.4" />
+              <line x1="46" y1="1" x2="46" y2="33" stroke="#E05032" strokeWidth="1" strokeOpacity="0.3" />
+              <line x1="93" y1="1" x2="93" y2="33" stroke="#E05032" strokeWidth="1" strokeOpacity="0.3" />
+              <line x1="23" y1="35" x2="23" y2="67" stroke="#E05032" strokeWidth="1" strokeOpacity="0.3" />
+              <line x1="70" y1="35" x2="70" y2="67" stroke="#E05032" strokeWidth="1" strokeOpacity="0.3" />
+              <line x1="116" y1="35" x2="116" y2="67" stroke="#E05032" strokeWidth="1" strokeOpacity="0.3" />
+            </svg>
+            <div>
+              <Caption theme={TH} size={20} color={PAPER_3} style={{ letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                {t(q.singleTitle, lang)}
+              </Caption>
+              <div className="font-display" style={{ fontSize: 56, fontWeight: 700, color: "#E05032", lineHeight: 1, marginTop: 6, letterSpacing: "-0.02em" }}>
+                {q.singleMass}
+              </div>
+            </div>
+          </div>
+        </Reveal>
+      </At>
+
+      {/* Right — building + counters */}
+      <At x={860} y={130} w={760}>
+        {/* Step 2 — building outline */}
+        <Reveal at={2} step={step} y={20}>
+          <div style={{ display: "flex", gap: 60, alignItems: "flex-start" }}>
+            {/* 12-floor building sketch */}
+            <svg width="180" height="620" viewBox="0 0 180 620" fill="none">
+              {/* Building outline */}
+              <rect x="20" y="10" width="140" height="600" rx="4"
+                fill="rgba(220,80,50,0.08)" stroke="#E05032" strokeWidth="2" />
+              {/* Floor lines — 12 floors */}
+              {Array.from({ length: 11 }, (_, i) => {
+                const y = 10 + (i + 1) * 50;
+                return (
+                  <line key={i} x1="20" y1={y} x2="160" y2={y}
+                    stroke="#E05032" strokeWidth="1" strokeOpacity="0.35" />
+                );
+              })}
+              {/* Windows per floor */}
+              {Array.from({ length: 12 }, (_, floor) =>
+                [44, 94, 119].map((wx, wi) => (
+                  <rect key={`${floor}-${wi}`}
+                    x={wx} y={18 + floor * 50} width={18} height={28}
+                    rx="2" fill="rgba(240,178,62,0.15)" stroke="rgba(240,178,62,0.3)" strokeWidth="1" />
+                ))
+              )}
+            </svg>
+            <div style={{ paddingTop: 20 }}>
+              <Caption theme={TH} size={20} color={PAPER_3} style={{ letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                {t(q.buildingTitle, lang)}
+              </Caption>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 14 }}>
+                <div className="font-display tnum" style={{ fontSize: 72, fontWeight: 700, color: "#E05032", lineHeight: 1, letterSpacing: "-0.03em" }}>
+                  <CountUp to={N.materials.building12fBricks} on={step >= 2} duration={1.4} delay={0.1}
+                    format={(v) => num(Math.round(v))} />
+                </div>
+              </div>
+              <Caption theme={TH} size={22} color={PAPER_2} style={{ marginTop: 8 }}>
+                {t(q.brickCount, lang)}
+              </Caption>
+            </div>
+          </div>
+        </Reveal>
+
+        {/* Step 3 — total weight comparison */}
+        <Reveal at={3} step={step} y={18} style={{ marginTop: 40 }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 40 }}>
+            <div>
+              <Caption theme={TH} size={20} color={PAPER_3} style={{ letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                {t(q.totalTitle, lang)}
+              </Caption>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 10 }}>
+                <div className="font-display tnum" style={{ fontSize: 80, fontWeight: 700, color: "#E05032", lineHeight: 1, letterSpacing: "-0.03em" }}>
+                  <CountUp to={N.materials.building12fBrickTonnes} on={step >= 3} duration={1.2} delay={0.1}
+                    format={(v) => num(Math.round(v))} />
+                </div>
+                <Caption theme={TH} size={26} color={PAPER_2}>{t(q.totalUnit, lang)}</Caption>
+              </div>
+            </div>
+            <div style={{ paddingBottom: 14 }}>
+              <div style={{ width: 2, height: 60, background: "rgba(214,236,220,0.2)", borderRadius: 1 }} />
+            </div>
+            <div>
+              <Caption theme={TH} size={20} color={PAPER_3} style={{ letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                {t(q.vs, lang)}
+              </Caption>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 10 }}>
+                <div className="font-display tnum" style={{ fontSize: 80, fontWeight: 700, color: ACC, lineHeight: 1, letterSpacing: "-0.03em" }}>
+                  <CountUp to={N.materials.building12fAeratedTonnes} on={step >= 3} duration={1.2} delay={0.3}
+                    format={(v) => num(Math.round(v))} />
+                </div>
+                <Caption theme={TH} size={26} color={PAPER_2}>{t(q.totalUnit, lang)}</Caption>
+              </div>
+            </div>
+          </div>
+          <div style={{ marginTop: 30 }}>
+            <Chip theme={TH} color={ACC} filled size={21}>{t(q.lighter, lang)}</Chip>
+          </div>
+        </Reveal>
+      </At>
+    </Slide>
+  );
+}
+
 // ── 06 · Bearing walls ───────────────────────────────────────────────────────
 
 /**
