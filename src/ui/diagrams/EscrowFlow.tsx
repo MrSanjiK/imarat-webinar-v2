@@ -626,20 +626,31 @@ export function EscrowFlow({ step }: { step: number }) {
           transition={{ duration: 0.7, ease: EASE, delay: after ? 0.72 : 0.42 }}
           style={{ transformOrigin: `${CX_VAULT}px ${BOT - 118}px` }}
         >
+          {/* A six-spoke vault wheel with a hub. Two spokes on a ring read as
+              a cancel glyph — the one thing this door must not say. */}
           <circle
             cx={CX_VAULT}
             cy={BOT - 118}
-            r={34}
+            r={36}
             fill="none"
             stroke={after ? V.emerald : V.ash}
             strokeWidth={5}
           />
-          <path
-            d={`M ${CX_VAULT - 22} ${BOT - 140} L ${CX_VAULT + 22} ${BOT - 96} M ${CX_VAULT + 22} ${BOT - 140} L ${CX_VAULT - 22} ${BOT - 96}`}
-            stroke={after ? V.emerald : V.ash}
-            strokeWidth={5}
-            strokeLinecap="round"
-          />
+          {[0, 60, 120].map((deg) => {
+            const a = (deg * Math.PI) / 180;
+            const dx = Math.cos(a) * 30;
+            const dy = Math.sin(a) * 30;
+            return (
+              <path
+                key={deg}
+                d={`M ${CX_VAULT - dx} ${BOT - 118 - dy} L ${CX_VAULT + dx} ${BOT - 118 + dy}`}
+                stroke={after ? V.emerald : V.ash}
+                strokeWidth={5}
+                strokeLinecap="round"
+              />
+            );
+          })}
+          <circle cx={CX_VAULT} cy={BOT - 118} r={10} fill={after ? V.emerald : V.ash} />
         </motion.g>
 
         {/* release: only against a certified stage */}

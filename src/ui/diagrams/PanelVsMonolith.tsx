@@ -19,8 +19,8 @@ import { V } from "@/ui/vivid";
  *   0 — empty.
  *   1 — grade line draws, then both bodies. Left: twelve separate prefab slabs
  *       with visible joints. Right: one continuous monolith outline with an
- *       unbroken column/beam frame and an emerald body fill. Concrete grades
- *       label each.
+ *       unbroken column/beam frame and an emerald body fill. A name pill lands
+ *       under each; the concrete grade is the spec card's job, not the pill's.
  *   2 — THE SHAKE. Both bodies translate at 12 Hz (N.testing.vibroFrequencyHz)
  *       for ~1.6 s; the panel swings almost twice as far. Vibration ticks
  *       flank each body. This is the only step that oscillates.
@@ -50,7 +50,6 @@ const HZ = N.testing.vibroFrequencyHz;
 
 const BASE = "rgba(244,251,244,0.9)";
 const DIM = "rgba(244,251,244,0.35)";
-const MID = "rgba(244,251,244,0.6)";
 
 /** Deterministic offsets — evaluated once, frozen into the module. */
 function lcg(seed: number) {
@@ -219,11 +218,13 @@ function FillWipe({
 }
 
 /** A verdict chip: lands with scale 1.25 → 1 and a small rotation. */
+/** Names the body under it — nothing else. The concrete grade belongs to the
+ *  spec card, which gives it a noun ("Beton M200–M300"); printing it here too
+ *  put the same figure on the stage twice. */
 function Verdict({
   cx,
   y,
   label,
-  sub,
   on,
   color,
   delay = 0,
@@ -231,7 +232,6 @@ function Verdict({
   cx: number;
   y: number;
   label: string;
-  sub: string;
   on: boolean;
   color: string;
   delay?: number;
@@ -257,22 +257,6 @@ function Verdict({
           {label}
         </text>
       </motion.g>
-      {/* 58, not 70: the viewBox stops at 370, so the chip's baseline row and
-          the spec line under it both have to land above it. */}
-      <motion.text
-        x={0}
-        y={58}
-        fill={MID}
-        fontSize={19}
-        textAnchor="middle"
-        className="font-mono"
-        style={{ letterSpacing: "0.08em" }}
-        initial={false}
-        animate={{ opacity: on ? 1 : 0 }}
-        transition={{ duration: 0.3, delay: on ? delay + 0.12 : 0 }}
-      >
-        {sub}
-      </motion.text>
     </g>
   );
 }
@@ -401,7 +385,6 @@ export function PanelVsMonolith({ step }: { step: number }) {
         cx={PANEL_X + BW / 2}
         y={304}
         label={t(q.leftLabel, lang)}
-        sub={N.materials.sovietConcrete}
         on={drawn}
         color={broken ? V.ember : "rgba(244,251,244,0.9)"}
         delay={0.6}
@@ -410,7 +393,6 @@ export function PanelVsMonolith({ step }: { step: number }) {
         cx={MONO_X + BW / 2}
         y={304}
         label={t(q.rightLabel, lang)}
-        sub={N.materials.modernConcrete}
         on={drawn}
         color={broken ? V.leaf : "rgba(244,251,244,0.9)"}
         delay={0.68}

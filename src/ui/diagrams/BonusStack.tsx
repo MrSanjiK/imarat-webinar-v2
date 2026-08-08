@@ -12,18 +12,15 @@ import { V } from "@/ui/vivid";
  * BonusStack — chapter 4, "Keyingi xarid uchun bonuslar". Slot is exactly
  * 1160 × 690 stage pixels.
  *
- * Four bonus plates stack bottom-to-top, one per beat, each landing with a
+ * The bonus plates stack bottom-to-top, one per beat, each landing with a
  * scale pop (1.25 → 1). Two of them — "bepul taʼmir" and "bepul jihozlash" —
  * carry a gold threshold chip whose number comes from
  * `N.vip.freeRenovationFrom` / `N.vip.freeFurnishingFrom`.
  *
- * Step map (VipBonuses, 6 steps)
- *   0 — the empty rack: four dashed ghost plates and the ground rule.
- *   1 — plate 01 lands (bottom).
- *   2 — plate 02.
- *   3 — plate 03.
- *   4 — plate 04 (top). The stack is complete.
- *   5 — the two gold threshold chips pop in on the plates the figures name,
+ * Step map (VipBonuses, 7 steps)
+ *   0 — the empty rack: dashed ghost plates and the ground rule.
+ *   1–5 — one plate lands per click, bottom to top, until the stack is complete.
+ *   6 — the two gold threshold chips pop in on the plates the figures name,
  *       and those plates settle to their gold treatment. No loop — the settled
  *       state is a state, not an animation.
  *
@@ -33,16 +30,14 @@ import { V } from "@/ui/vivid";
 const SLOT_W = 1060;
 const SLOT_H = 690;
 
-/** Only four plates fit the stack; the fifth string is carried by the slide. */
-const PLATES = 4;
-
-const PLATE_H = 128;
-const PITCH = 152;
-const BASE_TOP = SLOT_H - PLATE_H - 18; // bottom plate's top edge
+const PLATE_H = 112;
+const PITCH = 132;
+const BASE_TOP = SLOT_H - PLATE_H - 16; // bottom plate's top edge
 
 /** Left-aligned and widening upward: a staircase, so "more back" reads first.
- *  The top plate plus its chip (28 gap + 108) has to stay inside SLOT_W. */
-const WIDTHS = [640, 730, 820, 910] as const;
+ *  The widest plate plus its chip (28 gap + 108) has to stay inside SLOT_W. */
+const W_MIN = 596;
+const W_MAX = 912;
 
 /**
  * Which plate carries which gold threshold chip. Keyed by the bonus's own index
@@ -58,7 +53,8 @@ const CHIP_AT = new Map<number, string>([
 export function BonusStack({ step }: { step: number }) {
   const lang = useLang();
   const items = S.vip.bonuses.items;
-  const marked = step >= 5;
+  const marked = step >= items.length;
+  const width = (i: number) => W_MIN + ((W_MAX - W_MIN) * i) / Math.max(1, items.length - 1);
 
   return (
     <div style={{ position: "relative", width: SLOT_W, height: SLOT_H }}>
@@ -75,10 +71,9 @@ export function BonusStack({ step }: { step: number }) {
         }}
       />
 
-      {Array.from({ length: PLATES }, (_, i) => {
-        const item = items[i];
+      {items.map((item, i) => {
         const on = step >= i + 1;
-        const w = WIDTHS[i];
+        const w = width(i);
         const top = BASE_TOP - i * PITCH;
         const chip = marked ? CHIP_AT.get(i) : undefined;
         const lit = chip !== undefined;

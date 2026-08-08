@@ -36,10 +36,11 @@ import { V } from "@/ui/vivid";
  *       down every column; the drilled one stops dead at the bore. The orphaned
  *       load area fills, an arrow walks it sideways, and the neighbour's rail
  *       THICKENS (scaleX on a group) as it inherits.
- *   4 — PROGRESSIVE COLLAPSE. The drilled column drops and dims, every shaft
- *       goes ember, and the slabs pancake bottom-up on a 0.1 s stagger with a
- *       heavy 0.55 s fall, each landing with a dust bloom. Impact marks strike
- *       the grade.
+ *   4 — PROGRESSIVE COLLAPSE. The whole load apparatus goes out first — it is
+ *       describing a path that no longer exists — then every shaft goes ember
+ *       and sinks below grade behind a static clip, and the slabs pancake
+ *       bottom-up on a 0.1 s stagger with a heavy 0.55 s fall, each landing
+ *       with a dust bloom. What is left is a rubble stack over buried stubs.
  *
  * Rules kept: pure function of `step` (every gate is `step >= n`, so 4 → 3
  * renders exactly what 3 → 4 rendered); only transform / opacity /
@@ -134,15 +135,19 @@ const SLABS = (() => {
     y,
     /**
      * Pancake target: a rubble stack on grade, lowest slab first. The pitch is
-     * wider than the slab and every plate slides, because stacked flush the
-     * four bands merge into one bar and "zanjirli qulash" stops reading as four
-     * separate floors.
+     * a little wider than the slab so the four bands stay four bands, but the
+     * slide and the tilt are small — past about a degree and a half the plates
+     * cross each other and the pile reads as scattered planks rather than as
+     * four floors that came down on top of one another.
      */
-    dy: GRADE - SLAB_H - y - i * (SLAB_H + 10),
-    dx: (r() * 2 - 1) * 28,
-    rot: (r() * 2 - 1) * 2.8,
+    dy: GRADE - SLAB_H - y - i * (SLAB_H + 6),
+    dx: (r() * 2 - 1) * 20,
+    rot: (r() * 2 - 1) * 1.2,
   }));
 })();
+
+/** The envelope the building used to fill. Drawn once it no longer does. */
+const ENVELOPE = rectD(SLAB_X, ROOF, SLAB_W, GRADE - ROOF);
 
 const GROUND = `M ${SLAB_X - 48} ${GRADE} H ${SLAB_X + SLAB_W + 48}`;
 const EARTH = (() => {
@@ -326,11 +331,14 @@ export function RebarCollapse({ step }: { step: number }) {
   const q = S.quake.rebar;
   const uid = useId().replace(/:/g, "");
   const holeMask = `rc-hole-${uid}`;
+  const gradeClip = `rc-grade-${uid}`;
 
   const section = step >= 1;
   const cut = step >= 2;
   const frame = step >= 3;
   const collapse = step >= 4;
+  /** The load path is only true while the frame is still standing. */
+  const live = frame && !collapse;
 
   return (
     <svg viewBox="0 0 1600 420" preserveAspectRatio="xMidYMid meet" className="w-full h-full">
@@ -354,6 +362,12 @@ export function RebarCollapse({ step }: { step: number }) {
             <circle cx={HOLE.x} cy={HOLE.y} r={HOLE.r} fill="#000" />
           </motion.g>
         </mask>
+
+        {/* Grade is a floor, not a suggestion: the shafts sink through it and
+            are gone. Static, so nothing about the clip itself animates. */}
+        <clipPath id={gradeClip} clipPathUnits="userSpaceOnUse">
+          <rect x={640} y={0} width={960} height={GRADE + 2} />
+        </clipPath>
       </defs>
 
       {/* ══ left view · the section ═════════════════════════════════════════ */}
@@ -502,137 +516,156 @@ export function RebarCollapse({ step }: { step: number }) {
       <Draw d={GROUND} on={frame} stroke={MID} w={3} dur={0.7} />
       <Draw d={EARTH} on={frame} stroke={DIM} w={2} delay={0.4} dur={0.5} />
 
-      {/* The load the drilled column can no longer carry, drawn as area. */}
-      <FillWipe
-        x={COL_X[DAMAGED] - 104}
-        y={ROOF + SLAB_H}
-        w={208}
-        h={LEVELS[0] - ROOF - SLAB_H}
-        on={frame}
-        fill={collapse ? "rgba(255,90,60,0.18)" : "rgba(0,168,104,0.18)"}
-        delay={1.0}
-        dur={0.8}
+      {/* The load the drilled column can no longer carry, drawn as area. It is
+          a statement about a standing frame, so it leaves with the frame. */}
+      <motion.g
+        initial={false}
+        animate={{ opacity: live ? 1 : 0 }}
+        transition={{ duration: 0.3, ease: EASE }}
+      >
+        <FillWipe
+          x={COL_X[DAMAGED] - 104}
+          y={ROOF + SLAB_H}
+          w={208}
+          h={LEVELS[0] - ROOF - SLAB_H}
+          on={frame}
+          fill="rgba(0,168,104,0.18)"
+          delay={1.0}
+          dur={0.8}
+        />
+      </motion.g>
+
+      {/* What the building used to fill. Without it the right half of the sheet
+          just goes empty and reads as a layout fault instead of as an absence. */}
+      <motion.path
+        d={ENVELOPE}
+        fill="none"
+        stroke={DIM}
+        strokeWidth={2}
+        strokeDasharray="14 12"
+        initial={false}
+        animate={{ opacity: collapse ? 1 : 0 }}
+        transition={{ duration: 0.5, ease: EASE, delay: collapse ? 0.7 : 0 }}
       />
 
-      {/* Columns. The drilled one drops and dims when it finally lets go. */}
-      {COL_X.map((cx, i) => {
-        const failed = i === DAMAGED;
-        return (
-          <motion.g
-            key={`col${i}`}
-            initial={false}
-            animate={{
-              y: collapse && failed ? 34 : 0,
-              rotate: collapse ? (failed ? 5 : i === 0 ? 1.4 : i === NEIGHBOUR ? -1.3 : -0.6) : 0,
-              opacity: collapse && failed ? 0.26 : 1,
-            }}
-            transition={{
-              duration: failed ? 0.5 : 0.75,
-              ease: EASE,
-              delay: collapse ? (failed ? 0.05 : 0.3 + i * 0.09) : 0,
-            }}
-            // The shaft goes out of plumb about its BASE, the way a real column
-            // hinges at grade. motion sets `transform-box: fill-box` on animated
-            // SVG, so the origin must be expressed against this group's own box
-            // — whose bottom edge is exactly GRADE and whose horizontal centre
-            // is exactly cx. A px origin would be re-based into that same box
-            // and land far below the drawing.
-            style={{ transformOrigin: "50% 100%" }}
-          >
-            <FillWipe
-              x={cx - COL_W / 2}
-              y={ROOF}
-              w={COL_W}
-              h={GRADE - ROOF}
-              on={frame}
-              fill="rgba(244,251,244,0.1)"
-              delay={0.5 + i * 0.06}
-              dur={0.6}
-            />
-            <Draw
-              d={rectD(cx - COL_W / 2, ROOF, COL_W, GRADE - ROOF)}
-              on={frame}
-              stroke={BASE}
-              w={3}
-              delay={0.16 + i * 0.06}
-              dur={0.6}
-            />
+      {/* Columns. Everything above grade sinks below it and is clipped away. */}
+      <g clipPath={`url(#${gradeClip})`}>
+        {COL_X.map((cx, i) => {
+          const failed = i === DAMAGED;
+          return (
+            <motion.g
+              key={`col${i}`}
+              initial={false}
+              animate={{
+                y: collapse ? (failed ? 248 : 198 + i * 9) : 0,
+                rotate: collapse ? (failed ? 5.4 : i === 0 ? 2.6 : i === NEIGHBOUR ? -3 : -1.8) : 0,
+                opacity: collapse && failed ? 0.4 : 1,
+              }}
+              transition={{
+                duration: failed ? 0.5 : 0.72,
+                ease: EASE,
+                delay: collapse ? (failed ? 0.05 : 0.3 + i * 0.09) : 0,
+              }}
+              // The shaft goes out of plumb about its BASE, the way a real column
+              // hinges at grade. motion sets `transform-box: fill-box` on animated
+              // SVG, so the origin must be expressed against this group's own box
+              // — whose bottom edge is exactly GRADE and whose horizontal centre
+              // is exactly cx. A px origin would be re-based into that same box
+              // and land far below the drawing.
+              style={{ transformOrigin: "50% 100%" }}
+            >
+              <FillWipe
+                x={cx - COL_W / 2}
+                y={ROOF}
+                w={COL_W}
+                h={GRADE - ROOF}
+                on={frame}
+                fill="rgba(244,251,244,0.1)"
+                delay={0.5 + i * 0.06}
+                dur={0.6}
+              />
+              <Draw
+                d={rectD(cx - COL_W / 2, ROOF, COL_W, GRADE - ROOF)}
+                on={frame}
+                stroke={BASE}
+                w={3}
+                delay={0.16 + i * 0.06}
+                dur={0.6}
+              />
 
-            {/* The load rail lives inside the shaft's own group, so it stays
-                welded to the column when the frame goes out of plumb. */}
-            {i === NEIGHBOUR && (
+              {/* Rails, bore and stub all describe a load path. They live inside
+                  the shaft's own group so they stay welded to it, and they go
+                  out together the moment that path stops existing. */}
               <motion.g
                 initial={false}
-                animate={{ scaleX: frame ? 1 : 0.3 }}
-                transition={{ duration: 0.55, ease: EASE, delay: frame ? 1.7 : 0 }}
+                animate={{ opacity: live ? 1 : 0 }}
+                transition={{ duration: 0.26, ease: EASE }}
               >
-                {/* The rail is a vertical stroke centred on cx, so the fill-box
-                    default puts the scaleX pivot on its own axis — which is the
-                    only pivot that reads as "this rail got thicker". */}
+                {i === NEIGHBOUR && (
+                  <motion.g
+                    initial={false}
+                    animate={{ scaleX: frame ? 1 : 0.3 }}
+                    transition={{ duration: 0.55, ease: EASE, delay: frame ? 1.7 : 0 }}
+                  >
+                    {/* The rail is a vertical stroke centred on cx, so the fill-box
+                        default puts the scaleX pivot on its own axis — which is the
+                        only pivot that reads as "this rail got thicker". */}
+                    <Draw
+                      d={NEIGHBOUR_RAIL}
+                      on={frame}
+                      stroke={LOAD}
+                      w={11}
+                      opacity={0.6}
+                      delay={1.7}
+                      dur={0.5}
+                      cap="butt"
+                    />
+                  </motion.g>
+                )}
+
                 <Draw
-                  d={NEIGHBOUR_RAIL}
+                  d={RAILS[i]}
                   on={frame}
                   stroke={LOAD}
-                  w={11}
-                  opacity={0.6}
-                  delay={1.7}
-                  dur={0.5}
-                  cap="butt"
+                  w={failed ? 4 : 3}
+                  opacity={failed ? 1 : 0.65}
+                  delay={0.9 + i * 0.06}
+                  dur={0.55}
                 />
-                <Draw
-                  d={NEIGHBOUR_RAIL}
-                  on={collapse}
-                  stroke={FAIL}
-                  w={11}
-                  opacity={0.75}
-                  delay={0.45}
-                  dur={0.45}
-                  cap="butt"
-                />
+
+                {failed && (
+                  <>
+                    {/* Below the bore the shaft is standing and no longer carrying:
+                        a stub, not a column. */}
+                    <Draw d={DEAD_STUB} on={frame} stroke={DIM} w={3} delay={1.1} dur={0.35} />
+                    <motion.circle
+                      cx={FRAME_HOLE.x}
+                      cy={FRAME_HOLE.y}
+                      r={FRAME_HOLE.r}
+                      fill={V.night}
+                      stroke={FAIL}
+                      strokeWidth={3.5}
+                      initial={false}
+                      animate={{ opacity: frame ? 1 : 0, scale: frame ? 1 : 1.25 }}
+                      transition={{ duration: 0.3, ease: EASE, delay: frame ? 0.95 : 0 }}
+                    />
+                  </>
+                )}
               </motion.g>
-            )}
 
-            <Draw
-              d={RAILS[i]}
-              on={frame}
-              stroke={LOAD}
-              w={failed ? 4 : 3}
-              opacity={failed ? 1 : 0.65}
-              delay={0.9 + i * 0.06}
-              dur={0.55}
-            />
-
-            {failed && (
-              <>
-                {/* Below the bore the shaft is standing and no longer carrying:
-                    a stub, not a column. */}
-                <Draw d={DEAD_STUB} on={frame} stroke={DIM} w={3} delay={1.1} dur={0.35} />
-                <motion.circle
-                  cx={FRAME_HOLE.x}
-                  cy={FRAME_HOLE.y}
-                  r={FRAME_HOLE.r}
-                  fill={V.night}
-                  stroke={FAIL}
-                  strokeWidth={3.5}
-                  initial={false}
-                  animate={{ opacity: frame ? 1 : 0, scale: frame ? 1 : 1.25 }}
-                  transition={{ duration: 0.3, ease: EASE, delay: frame ? 0.95 : 0 }}
-                />
-              </>
-            )}
-
-            {/* Ember over-draw: the shaft failing, not a stroke swap. */}
-            <Draw
-              d={rectD(cx - COL_W / 2, ROOF, COL_W, GRADE - ROOF)}
-              on={collapse}
-              stroke={FAIL}
-              w={3.5}
-              delay={0.15 + i * 0.09}
-              dur={0.55}
-            />
-          </motion.g>
-        );
-      })}
+              {/* Ember over-draw: the shaft failing, not a stroke swap. */}
+              <Draw
+                d={rectD(cx - COL_W / 2, ROOF, COL_W, GRADE - ROOF)}
+                on={collapse}
+                stroke={FAIL}
+                w={3.5}
+                delay={0.15 + i * 0.09}
+                dur={0.55}
+              />
+            </motion.g>
+          );
+        })}
+      </g>
 
       {/* Slabs. Bottom-up on a 0.1 s stagger — the chain in "zanjirli qulash".
           Heavy: 0.55 s of fall on the deck's ease, and each landing blooms. */}
@@ -651,7 +684,7 @@ export function RebarCollapse({ step }: { step: number }) {
               w={SLAB_W}
               h={SLAB_H}
               on={frame}
-              fill={collapse ? "rgba(255,90,60,0.3)" : "rgba(244,251,244,0.16)"}
+              fill={collapse ? "rgba(255,90,60,0.45)" : "rgba(244,251,244,0.16)"}
               delay={0.55 + i * 0.06}
               dur={0.7}
             />
@@ -700,8 +733,8 @@ export function RebarCollapse({ step }: { step: number }) {
         <motion.g
           key={`in${i}`}
           initial={false}
-          animate={{ opacity: frame ? 1 : 0, y: frame ? 0 : -14 }}
-          transition={{ duration: 0.35, ease: EASE, delay: frame ? 0.75 + i * 0.06 : 0 }}
+          animate={{ opacity: live ? 1 : 0, y: frame ? 0 : -14 }}
+          transition={{ duration: 0.35, ease: EASE, delay: live ? 0.75 + i * 0.06 : 0 }}
         >
           <rect
             x={x - (i === DAMAGED ? 3.5 : 2)}
@@ -718,28 +751,34 @@ export function RebarCollapse({ step }: { step: number }) {
       ))}
 
       {/* The transfer itself: the load walking sideways into the neighbour. */}
-      <Draw
-        d={`M ${COL_X[DAMAGED] + 24} ${LEVELS[0] - 14} C ${COL_X[DAMAGED] + 80} ${
-          LEVELS[0] - 44
-        } ${COL_X[NEIGHBOUR] - 80} ${LEVELS[0] - 44} ${COL_X[NEIGHBOUR] - 30} ${LEVELS[0] - 14}`}
-        on={frame}
-        stroke={collapse ? FAIL : LOAD}
-        w={5}
-        delay={frame && !collapse ? 1.35 : 0.3}
-        dur={0.5}
-      />
-      <motion.path
-        d={`M ${COL_X[NEIGHBOUR] - 30} ${LEVELS[0] - 14} L ${COL_X[NEIGHBOUR] - 48} ${
-          LEVELS[0] - 28
-        } M ${COL_X[NEIGHBOUR] - 30} ${LEVELS[0] - 14} L ${COL_X[NEIGHBOUR] - 46} ${LEVELS[0] - 4}`}
-        fill="none"
-        stroke={collapse ? FAIL : LOAD}
-        strokeWidth={5}
-        strokeLinecap="round"
+      <motion.g
         initial={false}
-        animate={{ opacity: frame ? 1 : 0 }}
-        transition={{ duration: 0.25, delay: frame ? 1.8 : 0 }}
-      />
+        animate={{ opacity: live ? 1 : 0 }}
+        transition={{ duration: 0.28, ease: EASE }}
+      >
+        <Draw
+          d={`M ${COL_X[DAMAGED] + 24} ${LEVELS[0] - 14} C ${COL_X[DAMAGED] + 80} ${
+            LEVELS[0] - 44
+          } ${COL_X[NEIGHBOUR] - 80} ${LEVELS[0] - 44} ${COL_X[NEIGHBOUR] - 30} ${LEVELS[0] - 14}`}
+          on={frame}
+          stroke={LOAD}
+          w={5}
+          delay={1.35}
+          dur={0.5}
+        />
+        <motion.path
+          d={`M ${COL_X[NEIGHBOUR] - 30} ${LEVELS[0] - 14} L ${COL_X[NEIGHBOUR] - 48} ${
+            LEVELS[0] - 28
+          } M ${COL_X[NEIGHBOUR] - 30} ${LEVELS[0] - 14} L ${COL_X[NEIGHBOUR] - 46} ${LEVELS[0] - 4}`}
+          fill="none"
+          stroke={LOAD}
+          strokeWidth={5}
+          strokeLinecap="round"
+          initial={false}
+          animate={{ opacity: frame ? 1 : 0 }}
+          transition={{ duration: 0.25, delay: frame ? 1.8 : 0 }}
+        />
+      </motion.g>
 
       <Draw d={IMPACT} on={collapse} stroke={FAIL} w={3} opacity={0.85} delay={0.62} dur={0.45} />
 
@@ -768,20 +807,22 @@ export function RebarCollapse({ step }: { step: number }) {
         y={ROOF - 28}
         anchor="end"
         text={t(q.loadLabel, lang)}
-        on={frame}
+        on={live}
         color={LOAD}
         size={26}
         delay={1.45}
       />
+      {/* The overload belongs to the re-route, not to the rubble: it is the
+          sentence that explains why the next step happens. */}
       <Note
         x={COL_X[3] + 48}
         y={ROOF + 46}
         text={t(q.overloadLabel, lang)}
-        on={collapse}
+        on={live}
         color={FAIL}
         size={26}
         leader={{ x: COL_X[NEIGHBOUR] + 26, y: LEVELS[1] - 10 }}
-        delay={0.95}
+        delay={1.95}
       />
     </svg>
   );

@@ -77,12 +77,16 @@ const UNIT_D = (() => {
 
 // ── lower band: the linked dial ──────────────────────────────────────────────
 
-const DIAL_Y = 280;
-const R = 108;
-const STROKE = 20;
-const SIZE = (R + STROKE) * 2; // 256
+/** The ring is sized around the widest reading — "100%" set in Unbounded, a
+ *  very wide display face. At 54 px it measures ~187, and the chord across the
+ *  glyph band has to clear that or the percent sign runs into the stroke. */
+const DIAL_Y = 266;
+const R = 124;
+const STROKE = 18;
+const SIZE = (R + STROKE) * 2; // 284
 const CIRC = 2 * Math.PI * R;
-const DIAL_X = [44, 620] as const;
+const READING = 54;
+const DIAL_X = [30, 606] as const;
 
 function Dial({
   x,
@@ -145,10 +149,10 @@ function Dial({
           style={{
             position: "absolute",
             left: 0,
-            top: SIZE / 2 - 62,
+            top: SIZE / 2 - 60,
             width: SIZE,
             textAlign: "center",
-            fontSize: 62,
+            fontSize: READING,
             lineHeight: 1,
             fontWeight: 600,
             letterSpacing: "-0.035em",
@@ -167,7 +171,7 @@ function Dial({
         style={{
           position: "absolute",
           left: 0,
-          top: SIZE / 2 + 12,
+          top: SIZE / 2 + 8,
           width: SIZE,
           textAlign: "center",
           fontSize: 19,

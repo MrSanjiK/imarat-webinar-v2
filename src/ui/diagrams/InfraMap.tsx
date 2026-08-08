@@ -13,7 +13,7 @@ import { V } from "@/ui/vivid";
  * around it are numbered discs on the ends of drawn routes.
  *
  * Step map (the slide passes its own `step` straight through, 0–4):
- *   0 — the sheet: faint ink fabric blocks, then the Sergeli City node lands.
+ *   0 — the Sergeli City node lands.
  *   1 — the four POI discs drop in, staggered, with a 1.25 → 1 scale pop.
  *   2 — the routes draw out of the node (pathLength), emerald, round caps.
  *   3 — the name plates settle under each disc with their proximity chip.
@@ -65,19 +65,6 @@ const DISC_R = 42;
 const PLATE_W = 268;
 const PLATE_H = 104;
 
-/** Urban fabric. Confined to the top and bottom bands of the central corridor,
- *  the one region no disc, route or name plate can reach in either alphabet. */
-const FABRIC = [
-  { x: 288, y: 40, w: 104, h: 56 },
-  { x: 414, y: 36, w: 132, h: 60 },
-  { x: 568, y: 52, w: 88, h: 44 },
-  { x: 686, y: 40, w: 70, h: 52 },
-  { x: 300, y: 470, w: 120, h: 58 },
-  { x: 444, y: 476, w: 96, h: 48 },
-  { x: 566, y: 470, w: 74, h: 44 },
-  { x: 330, y: 552, w: 180, h: 40 },
-] as const;
-
 const curve = (r: Poi["route"]) => `M ${r[0]} ${r[1]} Q ${r[2]} ${r[3]} ${r[4]} ${r[5]}`;
 
 // ── icons, drawn around a local 0,0 so the disc's scale pop stays centred ────
@@ -123,22 +110,6 @@ export function InfraMap({ step }: { step: number }) {
 
   return (
     <svg viewBox="0 0 1000 620" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      {/* ── fabric ───────────────────────────────────────────────────────────*/}
-      {FABRIC.map((b, i) => (
-        <motion.rect
-          key={`${b.x}-${b.y}`}
-          x={b.x}
-          y={b.y}
-          width={b.w}
-          height={b.h}
-          rx={10}
-          fill="rgba(10,31,20,0.05)"
-          initial={false}
-          animate={{ opacity: step >= 0 ? 1 : 0, scale: step >= 0 ? 1 : 0.9 }}
-          transition={{ duration: 0.5, ease: EASE, delay: 0.04 + i * 0.03 }}
-        />
-      ))}
-
       {/* ── routes: drawn out of the node, then a gold overlay for the focus ──*/}
       {POIS.map((p, i) => (
         <g key={`route-${i}`}>

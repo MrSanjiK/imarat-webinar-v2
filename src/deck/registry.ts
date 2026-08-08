@@ -283,7 +283,7 @@ export const DECK: SlideDef[] = [
   {
     id: "v-bonuses",
     chapter: 4,
-    steps: 6,
+    steps: 7,
     theme: "paper",
     label: S.vip.bonuses.title,
     Component: VipBonuses,

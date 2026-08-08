@@ -245,8 +245,8 @@ export function VipCondition({ step }: SlideProps) {
 /**
  * Steps
  *   0 — headline.
- *   1–4 — one bonus plate per click, bottom to top.
- *   5 — the two gold thresholds light. Choreography lives in `BonusStack`.
+ *   1–5 — one bonus plate per click, bottom to top.
+ *   6 — the two gold thresholds light. Choreography lives in `BonusStack`.
  */
 export function VipBonuses({ step }: SlideProps) {
   const lang = useLang();

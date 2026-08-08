@@ -403,8 +403,10 @@ export function CityLife({ step }: SlideProps) {
 // ── 08 · infrastructure ──────────────────────────────────────────────────────
 
 /**
- * The map carries this slide alone; the left column is a title, one line of
- * argument, and a numbered key that lights up in time with the discs.
+ * The map carries this slide alone; the left column is a title and one line of
+ * argument. There is deliberately no numbered key beside it — every disc prints
+ * its own name and proximity on the map, and a key would put the same four
+ * strings on the slide twice.
  *
  * Steps mirror `InfraMap`'s own map exactly, because the slide passes `step`
  * straight through: 0 node · 1 discs · 2 routes · 3 names · 4 focus.
@@ -418,7 +420,10 @@ export function CityInfra({ step }: SlideProps) {
       <Mesh variant="paper" />
       <Glow x={1240} y={520} r={520} color="0,168,104" opacity={0.12} />
 
-      <At x={M.left} y={M.top + 24} w={520}>
+      {/* Centred against the map rather than hung off the top margin: with the
+          key gone this column is three blocks tall, and aligning it to M.top
+          left the whole left third bottom-heavy with white. */}
+      <At x={M.left} y={352} w={520}>
         <Reveal at={0} step={step} y={22}>
           <Title size={70} style={{ letterSpacing: "-0.026em" }}>
             {t(c.title, lang)}
@@ -433,45 +438,6 @@ export function CityInfra({ step }: SlideProps) {
           </Body>
         </Reveal>
 
-        {/* The key. Index and name only — each pin's proximity descriptor is
-            printed on the map itself, under its own disc, and repeating it here
-            would put the same four strings on the slide twice. */}
-        <div style={{ marginTop: 46, display: "grid", gap: 22 }}>
-          {c.pins.map((p, i) => {
-            const lit = step >= 1;
-            const dim = step >= 4 && i !== 0;
-            return (
-              <Stagger key={i} at={1} step={step} i={i} y={14} x={12} gap={0.08}>
-                <motion.div
-                  initial={false}
-                  animate={{ opacity: lit ? (dim ? 0.34 : 1) : 0 }}
-                  transition={{ duration: 0.44, ease: EASE }}
-                  style={{ display: "flex", gap: 18, alignItems: "center" }}
-                >
-                  <span
-                    className="tnum font-mono"
-                    style={{
-                      fontSize: 17,
-                      width: 34,
-                      height: 34,
-                      flexShrink: 0,
-                      borderRadius: 999,
-                      display: "grid",
-                      placeItems: "center",
-                      background: step >= 4 && i === 0 ? V.gold : V.paper3,
-                      color: V.ink,
-                    }}
-                  >
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div style={{ fontSize: 26, fontWeight: 400, color: V.ink, lineHeight: 1.24 }}>
-                    {t(p.t, lang)}
-                  </div>
-                </motion.div>
-              </Stagger>
-            );
-          })}
-        </div>
       </At>
 
       {/* 1040 wide, not 1060: `preserveAspectRatio` fits the 1000 × 620 viewBox
@@ -606,8 +572,10 @@ export function CityPlans({ step }: SlideProps) {
           const isFocus = focus === i;
           const pose = FAN[i];
 
-          // Resting: flat-ish fan. Focus: centred, lifted, scaled, square on.
-          const dx = isFocus ? (STAGE_W - CARD_W) / 2 - (x0 + i * (CARD_W + CARD_GAP)) : 0;
+          // Resting: flat-ish fan. Focus: lifted, scaled, square on — and left
+          // where it stands. Sliding it to the centre of the stage tore a hole
+          // in the strip where it came from and buried the middle card behind
+          // it, so a set of five read as four.
           const dy = isFocus ? -34 : settled ? 0 : pose.dy;
 
           return (
@@ -615,7 +583,6 @@ export function CityPlans({ step }: SlideProps) {
               key={f}
               initial={false}
               animate={{
-                x: dx,
                 y: dy,
                 scale: isFocus ? 1.42 : focus >= 0 ? 0.92 : 1,
                 rotateX: step === 0 ? 18 : 0,

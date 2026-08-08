@@ -72,10 +72,9 @@ export function EscrowWhat({ step }: SlideProps) {
           y={16}
           style={{ position: "absolute", top: 0, left: 0, width: 664 }}
         >
-          <Kicker color={V.ember} size={18}>
-            {t(e.beforeLabel, lang)}
-          </Kicker>
-          <Title size={36} color={V.ember} style={{ marginTop: 16, maxWidth: 640, letterSpacing: "-0.02em" }}>
+          {/* No kicker: the drawing already names this rail, and the colour
+              says which act we are in. Two labels for one act is one too many. */}
+          <Title size={38} color={V.ember} style={{ maxWidth: 640, letterSpacing: "-0.02em" }}>
             {t(e.beforeSteps[2], lang)}
           </Title>
         </Reveal>
@@ -86,10 +85,7 @@ export function EscrowWhat({ step }: SlideProps) {
           y={16}
           style={{ position: "absolute", top: 0, left: 0, width: 664 }}
         >
-          <Kicker color={V.emerald} size={18}>
-            {t(e.afterLabel, lang)}
-          </Kicker>
-          <Title size={36} color={V.emerald} style={{ marginTop: 16, maxWidth: 640, letterSpacing: "-0.02em" }}>
+          <Title size={38} color={V.emerald} style={{ maxWidth: 640, letterSpacing: "-0.02em" }}>
             {t(e.afterSteps[2], lang)}
           </Title>
         </Reveal>
@@ -159,26 +155,6 @@ export function EscrowImpact({ step }: SlideProps) {
             }}
           >
             <Card w={cardW} h={452} radius={30}>
-              {/* Oversized ghost numeral, cropped by the card's own corner. */}
-              <div
-                className="tnum font-display"
-                style={{
-                  position: "absolute",
-                  right: 18,
-                  bottom: -34,
-                  fontSize: 150,
-                  lineHeight: 0.8,
-                  fontWeight: 700,
-                  letterSpacing: "-0.06em",
-                  color: accent,
-                  opacity: 0.1,
-                  userSelect: "none",
-                  pointerEvents: "none",
-                }}
-              >
-                {String(i + 1).padStart(2, "0")}
-              </div>
-
               <div style={{ position: "absolute", left: 36, top: 38, width: cardW - 72 }}>
                 <Kicker color={accent} size={19}>
                   {String(i + 1).padStart(2, "0")}

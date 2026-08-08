@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { motion } from "motion/react";
 import { EASE } from "@/deck/types";
-import { num, t } from "@/content/i18n";
+import { t } from "@/content/i18n";
 import { useLang } from "@/content/lang";
 import { S } from "@/content/strings";
 import { N } from "@/content/figures";
@@ -26,12 +26,15 @@ import { V } from "@/ui/vivid";
  *   3   — the rule draws left to right; 1999 lands as an ash tick, then 2018,
  *         then the GOLD AMNESTY BAND wipes across the span between the amnesty
  *         and the quake, a drop line falls to the stock, and the 10 × 10 grid
- *         (≙ 7 000 000+ legalised buildings) fills on a 0.012 stagger with the
- *         count written above it.
- *   4   — 2023.02.06 M7.8 lands in ember, the grid is struck out, the death
- *         toll counts up, and the CORROSION beat runs: sea-sand chlorides
- *         migrate inward as dots and the rust ring grows around the rebar
- *         section — the reason the stock was never going to hold.
+ *         (≙ the legalised stock) fills on a 0.012 stagger.
+ *   4   — 2023.02.06 M7.8 lands in ember, the grid is struck out, and the
+ *         CORROSION beat runs: sea-sand chlorides migrate inward and the rust
+ *         ring grows around the rebar section — the reason the stock was never
+ *         going to hold.
+ *
+ * Carries no figures of its own. The slide already states 7 000 000 and
+ * ~60 000 as Stats and names the sea sand in its card; a diagram that repeated
+ * either would be reading the slide back to the room.
  *
  * Pure function of `step`: every gate is `step >= n`, so 4 → 3 renders exactly
  * what 3 → 4 rendered. Only transform / opacity / strokeDashoffset / clip-path.
@@ -81,7 +84,7 @@ const PITCH_Y = 16;
 const BLOCK_W = 15;
 const BLOCK_H = 11;
 const GRID_X = 352;
-const GRID_Y = 152;
+const GRID_Y = 168;
 const GRID_W = (COLS - 1) * PITCH_X + BLOCK_W;
 const GRID_H = (ROWS - 1) * PITCH_Y + BLOCK_H;
 
@@ -108,21 +111,22 @@ const BLOCKS = (() => {
 const STRIKE_A = `M ${GRID_X - 12} ${GRID_Y - 10} L ${GRID_X + GRID_W + 12} ${GRID_Y + GRID_H + 10}`;
 const STRIKE_B = `M ${GRID_X + GRID_W + 12} ${GRID_Y - 10} L ${GRID_X - 12} ${GRID_Y + GRID_H + 10}`;
 
-const DROP = `M ${BAND_X + BAND_W / 2} ${AXIS_Y + 14} V ${GRID_Y - 42}`;
+/** Starts below the amnesty caption, not through it. */
+const DROP = `M ${BAND_X + BAND_W / 2} ${AXIS_Y + 50} V ${GRID_Y - 30}`;
 
 // ── the corrosion beat ───────────────────────────────────────────────────────
 // A rebar section in emerald; chlorides arriving from outside; a rust ring
 // growing around the steel. Ember, because this is damage.
 
-const REBAR = { cx: 92, cy: 268, r: 22 };
+const REBAR = { cx: 148, cy: 246, r: 32 };
 
-/** Chloride paths: eight short runs converging on the bar. Dense stagger 0.012. */
+/** Chloride paths: short runs converging on the bar. Dense stagger 0.012. */
 const CHLORIDES = (() => {
   const out: Array<{ d: string; i: number }> = [];
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * Math.PI * 2;
-    const r0 = 76;
-    const r1 = 40;
+  for (let i = 0; i < 20; i++) {
+    const a = (i / 20) * Math.PI * 2;
+    const r0 = 92;
+    const r1 = 56;
     out.push({
       d: `M ${Math.round(REBAR.cx + Math.cos(a) * r0)} ${Math.round(
         REBAR.cy + Math.sin(a) * r0,
@@ -172,30 +176,6 @@ function Draw({
       }}
     />
   );
-}
-
-/** rAF ticker; mounting already-on snaps, so reverse nav never replays. */
-function useCount(to: number, on: boolean, duration: number, delay: number) {
-  const [v, setV] = useState(() => (on ? to : 0));
-  const was = useRef(on);
-  const raf = useRef(0);
-  useEffect(() => {
-    if (on === was.current) return;
-    was.current = on;
-    cancelAnimationFrame(raf.current);
-    // Nothing to reset: `v` is read through the `on` gate below, and the tick
-    // recomputes it from `to × eased(p)` rather than accumulating.
-    if (!on) return;
-    const t0 = performance.now() + delay * 1000;
-    const tick = (now: number) => {
-      const p = Math.min(1, Math.max(0, (now - t0) / (duration * 1000)));
-      setV(Math.round(to * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
-  }, [on, to, duration, delay]);
-  return on ? v : 0;
 }
 
 function YearTick({
@@ -252,8 +232,6 @@ export function TurkeyTimeline({ step }: { step: number }) {
 
   const on = step >= AT_AMNESTY;
   const hit = step >= AT_QUAKE;
-
-  const deaths = useCount(N.turkey.deaths, hit, 1.3, 0.55);
 
   const quakeChip = useMemo(() => `M${N.turkey.magnitude}`, []);
 
@@ -316,34 +294,21 @@ export function TurkeyTimeline({ step }: { step: number }) {
       {/* ══ what the amnesty legalised ══════════════════════════════════════ */}
       <Draw d={DROP} on={on} stroke={V.gold} w={2} opacity={0.6} delay={1.0} dur={0.3} />
 
-      <motion.g
+      {/* What the grid stands for — the count itself is a Stat on the slide. */}
+      <motion.text
+        x={GRID_X + GRID_W / 2}
+        y={GRID_Y - 14}
+        fill={MID}
+        fontSize={15}
+        textAnchor="middle"
+        className="font-mono"
+        style={{ letterSpacing: "0.08em" }}
         initial={false}
         animate={{ opacity: on ? 1 : 0, y: on ? 0 : 8 }}
         transition={{ duration: 0.4, ease: EASE, delay: on ? 1.05 : 0 }}
       >
-        <text
-          x={GRID_X + GRID_W / 2}
-          y={GRID_Y - 24}
-          fill={BASE}
-          fontSize={34}
-          textAnchor="middle"
-          className="font-display tnum"
-          style={{ fontWeight: 600 }}
-        >
-          {`${num(N.turkey.amnestyBuildings)}+`}
-        </text>
-        <text
-          x={GRID_X + GRID_W / 2}
-          y={GRID_Y - 6}
-          fill={MID}
-          fontSize={14}
-          textAnchor="middle"
-          className="font-mono"
-          style={{ letterSpacing: "0.08em" }}
-        >
-          {t(q.gridUnit, lang)}
-        </text>
-      </motion.g>
+        {t(q.gridUnit, lang)}
+      </motion.text>
 
       {/* The stock. 100 blocks on a 0.012 stagger — opacity only, so the sweep
           stays on the compositor even at a hundred elements. */}
@@ -402,34 +367,6 @@ export function TurkeyTimeline({ step }: { step: number }) {
         </text>
       </motion.g>
 
-      {/* ══ the toll ════════════════════════════════════════════════════════ */}
-      <motion.g
-        initial={false}
-        animate={{ opacity: hit ? 1 : 0, y: hit ? 0 : 12 }}
-        transition={{ duration: 0.45, ease: EASE, delay: hit ? 0.45 : 0 }}
-      >
-        <text
-          x={24}
-          y={172}
-          fill={V.ember}
-          fontSize={48}
-          className="font-display tnum"
-          style={{ fontWeight: 700 }}
-        >
-          {`~${num(deaths)}`}
-        </text>
-        <text
-          x={24}
-          y={196}
-          fill={MID}
-          fontSize={15}
-          className="font-mono"
-          style={{ letterSpacing: "0.08em" }}
-        >
-          {t(q.deathsLabel, lang)}
-        </text>
-      </motion.g>
-
       {/* ══ the lesson: sea sand → chlorides → rust ═════════════════════════ */}
       <g>
         {/* chlorides arriving from the sand, dense stagger */}
@@ -453,10 +390,10 @@ export function TurkeyTimeline({ step }: { step: number }) {
         <motion.circle
           cx={REBAR.cx}
           cy={REBAR.cy}
-          r={REBAR.r + 13}
+          r={REBAR.r + 17}
           fill="none"
           stroke={V.ember}
-          strokeWidth={14}
+          strokeWidth={18}
           initial={false}
           animate={{ scale: hit ? 1 : 0.6, opacity: hit ? 0.45 : 0 }}
           transition={{ duration: 0.9, ease: EASE, delay: hit ? 1.05 : 0 }}
@@ -464,10 +401,10 @@ export function TurkeyTimeline({ step }: { step: number }) {
         <motion.circle
           cx={REBAR.cx}
           cy={REBAR.cy}
-          r={REBAR.r + 6}
+          r={REBAR.r + 8}
           fill="none"
           stroke={V.ember}
-          strokeWidth={4}
+          strokeWidth={5}
           initial={false}
           animate={{ scale: hit ? 1 : 0.7, opacity: hit ? 1 : 0 }}
           transition={{ duration: 0.7, ease: EASE, delay: hit ? 1.15 : 0 }}
@@ -480,28 +417,11 @@ export function TurkeyTimeline({ step }: { step: number }) {
           r={REBAR.r}
           fill="rgba(0,168,104,0.35)"
           stroke={V.emerald}
-          strokeWidth={4}
+          strokeWidth={5}
           initial={false}
           animate={{ scale: hit ? 1 : 1.25, opacity: hit ? 1 : 0 }}
           transition={{ duration: 0.4, ease: EASE, delay: hit ? 0.7 : 0 }}
         />
-
-        {/* Only the sea-sand caption. The bar in the ring is *their* steel, so
-            no grade goes on it: A500S is ours, and ours is not the thing
-            rusting. Colour code stays honest. */}
-        <motion.text
-          x={186}
-          y={274}
-          fill={V.gold}
-          fontSize={19}
-          className="font-sans"
-          style={{ fontWeight: 700 }}
-          initial={false}
-          animate={{ opacity: hit ? 1 : 0, x: hit ? 0 : -10 }}
-          transition={{ duration: 0.4, ease: EASE, delay: hit ? 1.3 : 0 }}
-        >
-          {t(q.seaSandTitle, lang)}
-        </motion.text>
       </g>
     </svg>
   );

@@ -290,7 +290,19 @@ function buildVideo() {
     // stage px — so 720 wide still has headroom on a 4K panel. Encoding them
     // at source resolution would triple the precache for pixels nobody sees.
     { src: "studio-tour.mp4", out: "studio-tour.mp4", vf: "scale=720:1280:flags=lanczos", crf: 24 },
-    { src: "vibro-test.mp4", out: "vibro.mp4", vf: "scale=720:1280:flags=lanczos", crf: 24 },
+    // Only the last 14 s of the 170-s source is the test itself: the red rig
+    // bolted to the roof slab, then the crowd watching the tower ride out the
+    // shake. Everything before it is a blogger walking the site and talking to
+    // camera — under the title "Sunʼiy zilzila" that footage is not neutral
+    // filler, it is the wrong claim. Trimmed at the source, not in the player.
+    {
+      src: "vibro-test.mp4",
+      out: "vibro.mp4",
+      ss: 155.6,
+      t: 13.9,
+      vf: "scale=720:1280:flags=lanczos",
+      crf: 22,
+    },
     // Not a landscape clip. It is a 396-px-wide phone video pillarboxed into a
     // 1280×720 container, so 69 % of the frame is black bar — and the slide
     // uses it as a full-bleed backdrop, where that bar reads as a broken
@@ -315,7 +327,13 @@ function buildVideo() {
     jobs.push({
       label: s.out,
       out: join(OUT, "video", s.out),
-      args: ["-i", src, ...(s.vf ? ["-vf", s.vf] : []), ...X264(s.crf)],
+      args: [
+        ...(s.ss ? ["-ss", String(s.ss)] : []),
+        ...(s.t ? ["-t", String(s.t)] : []),
+        "-i", src,
+        ...(s.vf ? ["-vf", s.vf] : []),
+        ...X264(s.crf),
+      ],
     });
   }
 

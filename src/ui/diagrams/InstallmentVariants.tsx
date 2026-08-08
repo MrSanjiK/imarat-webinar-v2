@@ -411,6 +411,10 @@ export function InstallmentVariants({ step }: { step: number }) {
           gap: 26,
         }}
       >
+        {/* Tagged with the variant it belongs to. The figure is `b.total`, the
+            discounted one; variant 1 comes to 190 000 000 by its own arithmetic,
+            and an unqualified "Umumiy narx" across the full width invites the
+            room to price variant 1 at variant 2's number. */}
         <span
           className="font-mono"
           style={{
@@ -421,6 +425,7 @@ export function InstallmentVariants({ step }: { step: number }) {
           }}
         >
           {t(o.totalLabel, lang)}
+          <span style={{ color: V.gold }}>{` · ${t(o.v2, lang)}`}</span>
         </span>
         <span
           className="tnum"

@@ -22,10 +22,9 @@ import { V } from "@/ui/vivid";
  *       bone white, aerated block to 550 kg/m³ in emerald. Counters tick to the
  *       two figures on a .tnum face; the unit and the material name sit with
  *       each column.
- *   2 — F = m · a assembles. The glyphs come from `S.quake.mass.formula`, split
- *       on spaces — `F` rises out of the force zone below, `m` flies out of the
- *       mass columns along a leader, `a` arrives from outside the frame (the
- *       ground moves, not the building).
+ *   2 — the mass block dims to half. F = m · a belongs to the slide, which sets
+ *       it at 84 px in the left column; the diagram must not echo it in grey at
+ *       the same moment, so here the step is a hand-off, not a second reading.
  *   3 — two force arrows extend along their own axis. The brick one is ~3.4×
  *       the aerated one — the ratio is computed from the figures and clamped
  *       into the claimed 2–4× band, then measured and called out.
@@ -56,7 +55,6 @@ const BRICK_CX = 139;
 /** Spaced for the *labels*, not the columns: "Gʻisht terimi" is wider than 122. */
 const AER_CX = 340;
 
-const FORMULA_Y = 175;
 const ARROW_X0 = 78;
 const ARROW_LEN = 700;
 const BRICK_ARROW_Y = 418;
@@ -195,56 +193,6 @@ function Column({
   );
 }
 
-/** A formula glyph flying in from wherever its meaning comes from. */
-function Glyph({
-  x,
-  y,
-  ch,
-  on,
-  from,
-  delay = 0,
-  dur = 0.6,
-  size = 68,
-  color = BASE,
-}: {
-  x: number;
-  y: number;
-  ch: string;
-  on: boolean;
-  from: readonly [number, number];
-  delay?: number;
-  dur?: number;
-  size?: number;
-  color?: string;
-}) {
-  return (
-    <g transform={`translate(${x} ${y})`}>
-      <motion.g
-        initial={false}
-        animate={{ x: on ? 0 : from[0], y: on ? 0 : from[1], opacity: on ? 1 : 0 }}
-        transition={{
-          duration: dur,
-          ease: EASE,
-          delay: on ? delay : 0,
-          opacity: { duration: 0.26, delay: on ? delay : 0 },
-        }}
-      >
-        <text
-          x={0}
-          y={0}
-          fill={color}
-          fontSize={size}
-          textAnchor="middle"
-          className="font-display"
-          style={{ fontWeight: 600 }}
-        >
-          {ch}
-        </text>
-      </motion.g>
-    </g>
-  );
-}
-
 /**
  * A force arrow that extends along its own axis. The shaft is a plain rect and
  * the head a triangle, both inside a group scaled on X from a local origin at
@@ -306,14 +254,22 @@ export function MassPhysics({ step }: { step: number }) {
   const brickV = useCount(BRICK, mass, 1.1, 0.35);
   const aerV = useCount(AERATED, mass, 1.1, 0.5);
 
-  /** "F = m · a" → the five glyphs, straight from strings. Never retyped here. */
+  /** The leading glyph of "F = m · a", straight from strings — it labels both
+   *  force arrows at step 3 and is never retyped here. */
   const glyphs = useMemo(() => q.formula.split(/\s+/).filter(Boolean), [q.formula]);
-  const GX = [552, 614, 677, 727, 770];
 
   return (
     <svg viewBox="0 0 880 600" preserveAspectRatio="xMidYMid meet" className="w-full h-full">
       {/* ══ step 1 · mass ═══════════════════════════════════════════════════ */}
 
+      {/* The whole mass block steps back once the formula lands on the slide.
+          Group opacity multiplies with each child's own gate, so the entrance
+          animations are untouched — this only sets the ceiling. */}
+      <motion.g
+        initial={false}
+        animate={{ opacity: formula ? 0.5 : 1 }}
+        transition={{ duration: 0.5, ease: EASE, delay: formula ? 0.2 : 0 }}
+      >
       <Draw
         d={`M 52 ${BASE_Y} H ${AER_CX + COL_W / 2 + 24}`}
         on={mass}
@@ -428,50 +384,9 @@ export function MassPhysics({ step }: { step: number }) {
       >
         {t(q.blockLabel, lang)}
       </motion.text>
+      </motion.g>
 
-      {/* ══ step 2 · the formula assembles ══════════════════════════════════ */}
-
-      {/* leader: `m` came out of the columns */}
-      <Draw
-        d="M 214 190 C 340 150 500 152 628 176"
-        on={formula}
-        stroke={DIM}
-        w={2.5}
-        delay={1.0}
-        dur={0.55}
-      />
-      <motion.path
-        d="M 628 176 L 610 166 M 628 176 L 612 186"
-        fill="none"
-        stroke={DIM}
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        initial={false}
-        animate={{ opacity: formula ? 1 : 0 }}
-        transition={{ duration: 0.2, delay: formula ? 1.5 : 0 }}
-      />
-
-      {glyphs[0] && (
-        <Glyph x={GX[0]} y={FORMULA_Y} ch={glyphs[0]} on={formula} from={[-120, 250]} dur={0.7} />
-      )}
-      {glyphs[1] && (
-        <Glyph x={GX[1]} y={FORMULA_Y} ch={glyphs[1]} on={formula} from={[0, -34]} delay={0.18} color={MID} />
-      )}
-      {glyphs[2] && (
-        <Glyph
-          x={GX[2]}
-          y={FORMULA_Y}
-          ch={glyphs[2]}
-          on={formula}
-          from={[BRICK_CX - GX[2], 200 - FORMULA_Y]}
-          delay={0.34}
-          dur={0.85}
-        />
-      )}
-      {glyphs[3] && (
-        <Glyph x={GX[3]} y={FORMULA_Y} ch={glyphs[3]} on={formula} from={[0, -34]} delay={0.5} color={MID} />
-      )}
-      {glyphs[4] && <Glyph x={GX[4]} y={FORMULA_Y} ch={glyphs[4]} on={formula} from={[170, 0]} delay={0.6} />}
+      {/* ══ step 2 · the mass block recedes; the formula lands on the slide ══ */}
 
       {/* ══ step 3 · force ══════════════════════════════════════════════════ */}
 

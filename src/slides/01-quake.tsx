@@ -326,16 +326,28 @@ export function QuakePanelMonolith({ step }: SlideProps) {
         </div>
       </At>
 
+      {/* No chip on either card: each one sits directly under the body it
+          describes and the diagram already names that body in a pill. A header
+          here restated the same two words a hand's width apart. The border
+          carries the colour coding instead. */}
       <At x={M.left} y={648} w={740}>
         <Reveal at={2} step={step} y={26}>
-          <Card dark h={280} radius={28} style={{ width: "100%", padding: "30px 34px" }}>
-            <Chip theme={TH} color={PAPER_3} size={19}>
-              {t(q.leftLabel, lang)}
-            </Chip>
-            <div style={{ marginTop: 20, display: "grid", gap: 8 }}>
+          <Card
+            dark
+            h={280}
+            radius={28}
+            style={{
+              width: "100%",
+              padding: "30px 34px",
+              borderColor: "rgba(255,90,60,0.30)",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ display: "grid", gap: 10, width: "100%" }}>
               {q.leftPoints.map((p, i) => (
                 <Stagger key={i} at={2} step={step} i={i} y={10}>
-                  <Caption theme={TH} size={23} color={PAPER_2}>
+                  <Caption theme={TH} size={24} color={PAPER_2}>
                     {t(p, lang)}
                   </Caption>
                 </Stagger>
@@ -355,15 +367,14 @@ export function QuakePanelMonolith({ step }: SlideProps) {
               width: "100%",
               padding: "30px 34px",
               borderColor: "rgba(62,214,106,0.34)",
+              display: "flex",
+              alignItems: "center",
             }}
           >
-            <Chip theme={TH} color={ACC} filled size={19}>
-              {t(q.rightLabel, lang)}
-            </Chip>
-            <div style={{ marginTop: 20, display: "grid", gap: 8 }}>
+            <div style={{ display: "grid", gap: 10, width: "100%" }}>
               {q.rightPoints.map((p, i) => (
                 <Stagger key={i} at={3} step={step} i={i} y={10}>
-                  <Caption theme={TH} size={23} color={PAPER}>
+                  <Caption theme={TH} size={24} color={PAPER}>
                     {t(p, lang)}
                   </Caption>
                 </Stagger>
@@ -828,17 +839,11 @@ export function QuakeVibro({ step }: SlideProps) {
         </Reveal>
       </At>
 
-      <At x={M.left} y={598} w={640}>
-        <Reveal at={2} step={step} y={16}>
-          <Chip theme={TH} color={V.gold} filled size={22}>
-            {`MSK ${N.testing.mskFrom}–${N.testing.mskTo}`}
-          </Chip>
-        </Reveal>
-      </At>
-
       {/* The overlay calls out the accelerometer, the exciter and the MSK band
           in place, next to the thing each one names, and stamps the trace it
-          certifies. A detached key out here only competed with it. */}
+          certifies. A detached key out here only competed with it — a gold
+          "MSK 8–9" chip used to sit above the chart, a hand's width from the
+          gold label the chart already prints on the band itself. */}
       <At x={M.left} y={670} w={1000}>
         <div style={{ height: 230 }}>
           <VibroOverlay step={step} />

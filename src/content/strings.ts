@@ -283,8 +283,11 @@ export const S = {
       title: "Keyingi xarid uchun bonuslar",
       items: [
         { t: "Qoʻshimcha chegirma", d: "Har bir yangi shartnomada." },
-        { t: "Bepul taʼmir", d: "1+ 100% toʻlov uchun." },
-        { t: "Bepul jihozlash", d: "2+ 100% toʻlov uchun." },
+        // No "1+" / "2+" at the head of these two: BonusStack pops a gold
+        // threshold chip on exactly these plates, numbered from figures.ts.
+        // Repeating the qualifier put it on the same row twice.
+        { t: "Bepul taʼmir", d: "100% toʻlov uchun." },
+        { t: "Bepul jihozlash", d: "100% toʻlov uchun." },
         { t: "Rieltorlik xizmati", d: "Sotish yoki ijaraga berishda." },
         { t: "Trade-in", d: "Eski uyni hisobga topshirish." },
       ],
@@ -336,7 +339,9 @@ export const S = {
       pins: [
         { t: "Yangi Toshkent xalqaro aeroporti", d: "Loyiha yonida" },
         { t: "Yangi metro bekati", d: "Piyoda masofada" },
-        { t: "Yangi magistral yoʻl", d: "Markazga toʻgʻridan-toʻgʻri chiqish" },
+        // Short enough to hold one line inside the map's 268-px name plate in
+        // both alphabets; the long form wrapped and broke on its own hyphen.
+        { t: "Yangi magistral yoʻl", d: "Markazga chiqish" },
         { t: "Eco Park", d: "Qoʻshni hudud" },
       ],
     },

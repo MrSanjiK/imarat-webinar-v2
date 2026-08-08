@@ -301,7 +301,7 @@ export function DebtStory({ step }: { step: number }) {
       {/* ── THE REALITY: 100 buyers, 85 stop paying ───────────────────────── */}
       <motion.g
         initial={false}
-        animate={{ opacity: slip ? 0.34 : real ? 1 : 0 }}
+        animate={{ opacity: slip ? 0.5 : real ? 1 : 0 }}
         transition={{ duration: 0.5, ease: EASE }}
       >
         <motion.rect
@@ -354,21 +354,27 @@ export function DebtStory({ step }: { step: number }) {
           ),
         )}
 
-        <motion.text
-          x={G_X + (G_GAP * 9) / 2}
-          y={478}
-          textAnchor="middle"
-          fontSize={30}
-          letterSpacing="0.1em"
-          fill={V.ember}
-          className="font-mono tnum"
-          initial={false}
-          animate={{ opacity: real ? 1 : 0, y: real ? 0 : 10 }}
-          transition={{ duration: 0.44, ease: EASE, delay: real ? 1.34 : 0 }}
-        >
-          {`${DEFAULTED} / 100`}
-        </motion.text>
       </motion.g>
+
+      {/* The tally sits outside the recede group on purpose: the grid may step
+          back once the bars take the stage, but the number it produced is the
+          payload of the whole right half and has to stay readable from a Zoom
+          window at the far end of a phone. */}
+      <motion.text
+        x={G_X + (G_GAP * 9) / 2}
+        y={480}
+        textAnchor="middle"
+        fontSize={38}
+        fontWeight={700}
+        letterSpacing="0.06em"
+        fill={V.ember}
+        className="font-mono tnum"
+        initial={false}
+        animate={{ opacity: real ? 1 : 0, y: real ? 0 : 10 }}
+        transition={{ duration: 0.44, ease: EASE, delay: real ? 1.34 : 0 }}
+      >
+        {`${DEFAULTED} / 100`}
+      </motion.text>
     </svg>
   );
 }
