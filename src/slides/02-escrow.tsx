@@ -20,7 +20,7 @@ export function EscrowOpen({ step }: SlideProps) {
       step={step}
       title={S.chapters.c2.title}
       lead={S.chapters.c2.lead}
-      image="/media/banners/banner-03.webp"
+      image="/media/renders/render-004.webp"
     />
   );
 }

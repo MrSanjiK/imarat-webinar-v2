@@ -27,10 +27,10 @@ export const M = {
 
 type Tone = "paper" | "dark";
 
-const INK = { paper: "#2B2A28", dark: "#F1EDE4" };
-const INK2 = { paper: "#4A4844", dark: "#CFC8BA" };
-const ASH = { paper: "#8B867E", dark: "#8E877B" };
-const ACCENT = { paper: "#0E5C43", dark: "#3ED66A" };
+const INK = { paper: "#0A1F14", dark: "#F4FBF4" };
+const INK2 = { paper: "#35493D", dark: "#BFD9C6" };
+const ASH = { paper: "#67806F", dark: "#7BA189" };
+const ACCENT = { paper: "#00A868", dark: "#3ED66A" };
 
 export const tone = { INK, INK2, ASH, ACCENT };
 
@@ -168,9 +168,9 @@ export function Title({
       className={`font-display ${className ?? ""}`}
       style={{
         fontSize: size,
-        lineHeight: 1.06,
-        letterSpacing: "-0.018em",
-        fontWeight: 500,
+        lineHeight: 1.08,
+        letterSpacing: "-0.015em",
+        fontWeight: 600,
         color: color ?? INK[theme],
         textAlign: align,
         margin: 0,
@@ -406,7 +406,7 @@ export function Chip({
         borderRadius: 999,
         border: `1.5px solid ${c}`,
         background: filled ? c : "transparent",
-        color: filled ? (theme === "dark" ? "#141312" : "#F4F1EA") : c,
+        color: filled ? (theme === "dark" ? "#051810" : "#FFFFFF") : c,
         fontSize: size,
         letterSpacing: "0.1em",
         textTransform: "uppercase",
@@ -507,7 +507,7 @@ export function DiagramSlot({
   h: number;
   theme?: Tone;
 }) {
-  const c = theme === "dark" ? "rgba(244,241,234,0.26)" : "rgba(43,42,40,0.22)";
+  const c = theme === "dark" ? "rgba(244,251,244,0.26)" : "rgba(10,31,20,0.22)";
   return (
     <div
       style={{
@@ -546,7 +546,7 @@ export function Backdrop({
   scrim?: "left" | "bottom" | "none" | "full";
   position?: string;
 }) {
-  const base = theme === "dark" ? "20,19,18" : "244,241,234";
+  const base = theme === "dark" ? "5,24,16" : "255,255,255";
 
   // The deck chrome — progress rail, chapter tag, slide counter — lives below
   // y=988, the full width of the stage. A purely horizontal ramp is at zero in

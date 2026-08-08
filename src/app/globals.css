@@ -1,46 +1,41 @@
 @import "tailwindcss";
 
 @theme {
-  /* Palette lifted from the client's hand-drawn architectural banners. */
-  --color-paper: #f4f1ea;
-  --color-paper-2: #e9e4d8;
-  --color-paper-3: #dcd5c5;
-  --color-ink: #2b2a28;
-  --color-ink-2: #4a4844;
-  --color-ash: #8b867e;
-  --color-forest: #0e5c43;
+  /* V2 — "IMARAT Vivid": white light, deep green ink, electric emerald, lime
+     and gold. Token NAMES are kept from v1 so every slide re-skins at once;
+     only the values changed. `paper` now means bright white. */
+  --color-paper: #ffffff;
+  --color-paper-2: #f1f7ef;
+  --color-paper-3: #e2eee1;
+  --color-ink: #0a1f14;
+  --color-ink-2: #35493d;
+  --color-ash: #67806f;
+  --color-forest: #0b5c3f;
+  --color-emerald: #00a868;
   --color-leaf: #3ed66a;
-  --color-gold: #c8a24a;
-  --color-ember: #c7502f;
+  --color-lime: #c9f16a;
+  --color-gold: #f0b23e;
+  --color-ember: #ff5a3c;
+  --color-night: #051810;
+  --color-night-2: #0a2418;
 
-  /* Playfair Display cannot draw ғ Қ қ ҳ; Playfair, loaded for cyrillic-ext,
-     can. The literal family name leads on purpose — var(--font-playfair)
-     expands to «"Playfair Display", "Playfair Display Fallback"», and that
-     second entry is a local Times New Roman at size-adjust 111.26% claiming
-     U+0-10FFFF, so through the variable it answers for ҳ before any real face
-     is asked. Naming the primary, then the ext face, then the variable keeps
-     the metric fallback available for the swap without letting it intercept.
-     Do not collapse this back to var(--font-playfair) first. */
-  --font-display: "Playfair Display", var(--font-playfair-ext),
-    var(--font-playfair), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-
-  /* Same shape as --font-display, same reason. JetBrains Mono has ў but not
-     ʻ ғ ҳ қ Ғ Ҳ Қ, and Caveat has the Cyrillic but not ʻ — and "Boʻlim 01"
-     is a mono kicker on all six chapter openers. Inter carries every one of
-     them, so it goes second; without the literal family in front, the
-     "* Fallback" face inside each variable would answer first and the glyph
-     would come from whatever local font that machine resolves to. */
+  /* Literal family first so the real face answers before the "* Fallback"
+     metric face embedded in each next/font variable; Inter second as the
+     universal glyph net (ʻ U+02BB, ғ қ ҳ ў live there in every weight). */
+  --font-display: "Unbounded", var(--font-inter), var(--font-unbounded),
+    system-ui, sans-serif;
+  --font-sans: "Manrope", var(--font-inter), var(--font-manrope), system-ui,
+    sans-serif;
   --font-mono: "JetBrains Mono", var(--font-inter), var(--font-tech),
     ui-monospace, monospace;
-  --font-hand: "Caveat", var(--font-inter), var(--font-caveat), cursive;
+  --font-hand: "Manrope", var(--font-inter), var(--font-manrope), sans-serif;
 }
 
 html,
 body {
   height: 100%;
   margin: 0;
-  background: #17161a;
+  background: #04120c;
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -62,16 +57,16 @@ body {
   font-feature-settings: "tnum" 1;
 }
 
-/* Paper tooth. Static background-image — never animated. */
+/* Film grain. Static background-image — never animated. */
 .grain::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.5;
   background-image: radial-gradient(
     circle at 1px 1px,
-    rgba(43, 42, 40, 0.05) 1px,
+    rgba(10, 31, 20, 0.045) 1px,
     transparent 0
   );
   background-size: 4px 4px;
@@ -82,31 +77,47 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.45;
   background-image: radial-gradient(
     circle at 1px 1px,
-    rgba(244, 241, 234, 0.045) 1px,
+    rgba(220, 255, 230, 0.05) 1px,
     transparent 0
   );
   background-size: 4px 4px;
 }
 
-/* Drafting dot-grid used in slide corners. */
+/* Faint drafting dot-grid, now emerald-tinted. */
 .dotgrid {
   background-image: radial-gradient(
     circle at 1px 1px,
-    rgba(43, 42, 40, 0.22) 1.1px,
+    rgba(0, 168, 104, 0.28) 1.2px,
     transparent 0
   );
-  background-size: 22px 22px;
+  background-size: 26px 26px;
 }
 .dotgrid-light {
   background-image: radial-gradient(
     circle at 1px 1px,
-    rgba(244, 241, 234, 0.24) 1.1px,
+    rgba(62, 214, 106, 0.26) 1.2px,
     transparent 0
   );
-  background-size: 22px 22px;
+  background-size: 26px 26px;
+}
+
+/* Endless band. Track holds two identical copies; -50% loops seamlessly.
+   Pure transform — compositor-cheap. */
+@keyframes marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+.marquee-track {
+  display: inline-flex;
+  animation: marquee var(--marquee-dur, 26s) linear infinite;
+  will-change: transform;
 }
 
 ::-webkit-scrollbar {

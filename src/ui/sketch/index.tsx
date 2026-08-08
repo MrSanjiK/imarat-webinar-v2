@@ -14,16 +14,20 @@ import {
 
 export * from "./geometry";
 
+/**
+ * Bridged to the v2 "IMARAT Vivid" palette so legacy diagrams re-skin
+ * themselves while they wait for their vivid rewrite.
+ */
 export const C = {
-  paper: "#F4F1EA",
-  paper2: "#E9E4D8",
-  ink: "#2B2A28",
-  ink2: "#4A4844",
-  ash: "#8B867E",
-  forest: "#0E5C43",
+  paper: "#FFFFFF",
+  paper2: "#F1F7EF",
+  ink: "#0A1F14",
+  ink2: "#35493D",
+  ash: "#67806F",
+  forest: "#0B5C3F",
   leaf: "#3ED66A",
-  gold: "#C8A24A",
-  ember: "#C7502F",
+  gold: "#F0B23E",
+  ember: "#FF5A3C",
 } as const;
 
 type DrawProps = {

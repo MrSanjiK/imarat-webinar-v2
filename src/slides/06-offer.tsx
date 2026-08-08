@@ -38,7 +38,7 @@ export function OfferOpen({ step }: SlideProps) {
       step={step}
       title={S.chapters.c6.title}
       lead={S.chapters.c6.lead}
-      image="/media/banners/banner-09.webp"
+      image="/media/renders/render-027.webp"
     />
   );
 }

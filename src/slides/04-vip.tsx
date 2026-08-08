@@ -23,7 +23,7 @@ export function VipOpen({ step }: SlideProps) {
       step={step}
       title={S.chapters.c4.title}
       lead={S.chapters.c4.lead}
-      image="/media/banners/banner-07.webp"
+      image="/media/renders/render-011.webp"
     />
   );
 }

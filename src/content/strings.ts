@@ -20,8 +20,7 @@ export const S = {
     kicker: "Onlayn webinar",
     date: "9-avgust, 2026",
     title: "Oyogʻimiz ostidagi zamin",
-    subtitle:
-      "Zilzila, escrow, tayyor uylar va Sergeli City — bir soatda hammasi haqida.",
+    subtitle: "Zilzila · Escrow · 9 700 $ uylar · Sergeli City",
     hint: "Boshlash uchun →",
   },
 
@@ -40,7 +39,7 @@ export const S = {
   chapters: {
     c1: { n: 1, title: { latn: "Zilzila", cyrl: "Зилзила" }, lead: "Yer qimirlaganda binoni nima ushlab qoladi?" },
     c2: { n: 2, title: { latn: "Escrow", cyrl: "Эскроу" }, lead: "Pulingiz qayerda turadi va qachon harakatlanadi." },
-    c3: { n: 3, title: { latn: "Tayyor uylar", cyrl: "Тайёр уйлар" }, lead: "9 700 $ dan boshlanadigan xonadonlar qanday paydo boʻldi." },
+    c3: { n: 3, title: { latn: "9 700 $ uylar", cyrl: "9 700 $ уйлар" }, lead: "Bu narx qanday paydo boʻldi?" },
     c4: { n: 4, title: { latn: "VIP Club", cyrl: "VIP Club" }, lead: "Eski mijozlar uchun yopiq klub." },
     c5: { n: 5, title: { latn: "Sergeli City", cyrl: "Сергели Сити" }, lead: "Loyihaning oʻzi — havodan va koʻcha darajasidan." },
     c6: { n: 6, title: { latn: "Aksiya shartlari", cyrl: "Акция шартлари" }, lead: "Faqat bugungi ishtirokchilar uchun." },
@@ -53,8 +52,8 @@ export const S = {
       time: "soat 05:23",
       title: "Toshkent uygʻonmadi — u silkindi",
       body:
-        "Tong otmasidan yer qimirladi. Epimarkaz shahar markazining tagida edi. "
-        + "Zilzila kuchi rekord emas edi — ammo binolar unga tayyor emas edi.",
+        "Epimarkaz shahar markazining ostida edi. Kuch rekord emas edi — "
+        + "ammo binolar bardosh berolmadi.",
       statHomes: "xonadon vayron boʻldi",
       statFamilies: "oila boshpanasiz qoldi",
       note: "Bino qulaganda kuch aybdor emas — konstruksiya aybdor.",
@@ -62,8 +61,8 @@ export const S = {
     seismic: {
       title: "Biz seysmik hududda yashaymiz",
       body:
-        "Oʻzbekiston — faol yoriqlar ustidagi mamlakat. Bu oʻzgarmaydi. "
-        + "Oʻzgaradigan yagona narsa — biz nima quramiz.",
+        "Oʻzbekiston faol tektonik yoriqlar ustida joylashgan. Bu oʻzgarmaydi — "
+        + "oʻzgaradigani biz nima qurishimiz.",
       annotation: "Savol “boʻladimi?” emas. Savol — “qachon?”",
       legendFault: "Tektonik yoriqlar",
       legendCity: "Toshkent",
@@ -71,8 +70,8 @@ export const S = {
     panelVsMonolith: {
       title: "Sovet uylari va monolit karkas",
       body:
-        "Panelli uy — bir-biriga ulangan plitalar. Ulanish choklari eng zaif nuqta. "
-        + "Monolit karkas — yaxlit quyilgan skelet: kolonna, rigel, plita bir butun ishlaydi.",
+        "Panelli uy — choklar bilan ulangan plitalar, chok esa eng zaif nuqta. "
+        + "Monolit karkas — yaxlit quyilgan skelet.",
       leftLabel: "Panelli uy",
       rightLabel: "Monolit karkas",
       leftPoints: [
@@ -91,9 +90,7 @@ export const S = {
     },
     mass: {
       title: "Ortiqcha vazn — binoning koʻrinmas dushmani",
-      body:
-        "Zilzila kuchi binoning ogʻirligidan tugʻiladi. Ogʻirroq devor — kuchliroq zarba. "
-        + "Shuning uchun devor materiali dekor emas, konstruksiya masalasi.",
+      body: "Zilzila kuchi binoning massasidan tugʻiladi: ogʻir devor — kuchli zarba.",
       brickLabel: "Gʻisht terimi",
       blockLabel: "Gazoblok",
       unit: "kg/m³",
@@ -104,8 +101,8 @@ export const S = {
     bearing: {
       title: "Yuk koʻtaruvchi devorga tegib boʻlmaydi",
       body:
-        "Sovet uylarida yuk koʻtaruvchi devorlar har 3–6 metrda joylashgan. "
-        + "Ular binoni ushlab turadi. Ularni buzish — skeletdan suyak olib tashlash.",
+        "Yuk koʻtaruvchi devor binoni ushlab turadi. "
+        + "Uni buzish — skeletdan suyak olib tashlash.",
       pointA: "Yuk koʻtaruvchi devor",
       pointB: "Boʻlim devori",
       warn: "Rejalashtirishni oʻzgartirish — hisob-kitobsiz emas.",
@@ -117,8 +114,8 @@ export const S = {
     rebar: {
       title: "Konditsioner uchun teshilgan kolonna",
       body:
-        "Usta devorni teshadi. Parma armaturaga tegadi. Ikki sterjen uziladi. "
-        + "Kolonna hali ham turibdi — lekin uning yuk yoʻli oʻzgardi.",
+        "Parma armaturaga tegdi — ikki sterjen uzildi. "
+        + "Kolonna turibdi, ammo yuk yoʻli oʻzgardi.",
       step1: "Kolonna kesimi",
       step2: "Parma armaturani uzdi",
       step3: "Yuk qoʻshni kolonnaga oʻtdi",
@@ -135,8 +132,8 @@ export const S = {
     turkey: {
       title: "Turkiya sabogʻi",
       body:
-        "2023-yil 6-fevral, M7.8. Antakya deyarli butunlay yoʻq boʻldi. "
-        + "Sabab faqat zilzila emas edi — sabab 2018-yilgi qurilish amnistiyasi edi.",
+        "2023-yil 6-fevral, M7.8. Eng ogʻir talafot Antakyaga tushdi. "
+        + "Sabab faqat zilzila emas — nazoratsiz qurilish edi.",
       t1999: "1999 — Izmit zilzilasi, qoidalar qattiqlashtirildi",
       t2018: "2018 — amnistiya: tekshirilmagan binolar qonuniylashtirildi",
       t2023: "2023 — M7.8",
@@ -155,9 +152,8 @@ export const S = {
       title: "Sunʼiy zilzila",
       subtitle: "Vibrodinamik sinov",
       body:
-        "Binoni gapirtirishning yagona yoʻli — uni silkitish. "
-        + "Obyektga vibratsiya qoʻzgʻatkichlari va akselerometrlar oʻrnatiladi, "
-        + "keyin konstruksiya MSK shkalasi boʻyicha 8–9 ball darajasida sinovdan oʻtkaziladi.",
+        "Obyektga qoʻzgʻatkich va akselerometrlar oʻrnatiladi — "
+        + "bino MSK 8–9 ball darajasida sinovdan oʻtkaziladi.",
       sensorLabel: "Akselerometr",
       exciterLabel: "Vibratsiya qoʻzgʻatkichi",
       axisTime: "vaqt",
@@ -167,11 +163,11 @@ export const S = {
       labBody: "Gidravlik press — 100, 150 va 200 tonna. Har partiya beton sinaladi.",
     },
     close: {
-      title: "Zilzilaga tayyor turish kerakmi?",
-      answer: "Yoʻq. Sifatli uy olish kerak.",
+      title: "Zilziladan qoʻrqish kerakmi?",
+      answer: "Yoʻq. Sifatli uy tanlash kerak.",
       body:
-        "Tayyorgarlik — bu zaxira suv emas. Tayyorgarlik — bu toʻgʻri hisoblangan karkas, "
-        + "toʻgʻri beton, toʻgʻri armatura va sinovdan oʻtgan konstruksiya.",
+        "Xavfsizlik — bu toʻgʻri hisoblangan karkas, toʻgʻri beton "
+        + "va sinovdan oʻtgan konstruksiya.",
     },
   },
 
@@ -180,9 +176,8 @@ export const S = {
     what: {
       title: "Escrow oʻzi nima?",
       body:
-        "Escrow — bu bankdagi maxsus hisob. Xaridorning puli toʻgʻridan-toʻgʻri "
-        + "quruvchiga emas, shu hisobga tushadi. Quruvchi pulni faqat qurilish "
-        + "bosqichi bank tomonidan tasdiqlangandan keyin oladi.",
+        "Xaridorning puli quruvchiga emas, bankdagi maxsus hisobga tushadi. "
+        + "Quruvchi uni faqat bosqich tasdiqlangach oladi.",
       beforeLabel: "Escrow’gacha",
       afterLabel: "Escrow bilan",
       beforeSteps: [
@@ -201,10 +196,10 @@ export const S = {
       milestone: "Bosqich tasdigʻi",
     },
     impact: {
-      title: "Escrow tizimining uy bozoriga taʼsiri",
+      title: "Escrow uy bozorini qanday oʻzgartiradi",
       body:
-        "Escrow bozorni tozalaydi: pulni qurilishga aylantira olmaydigan kompaniya "
-        + "endi bozorda qololmaydi. Xaridor uchun bu — kamroq risk, koʻproq shaffoflik.",
+        "Pulni qurilishga aylantira olmaydigan kompaniya bozorda qololmaydi. "
+        + "Xaridorga — kamroq risk, koʻproq shaffoflik.",
       points: [
         { t: "Muzlab qolgan obyektlar kamayadi", d: "Pul bosqichga bogʻlangan." },
         { t: "Narx real qiymatga yaqinlashadi", d: "Sunʼiy arzon takliflar yoʻqoladi." },
@@ -237,23 +232,23 @@ export const S = {
       recoverBody: "Hammasi sekinlik bilan rejadagi holatga qaytmoqda.",
     },
     process: {
-      title: "Qarzdorligi mavjud mijozlar uyini sotib olish tartibi",
+      title: "Sotib olish tartibi",
       body:
-        "Bu xonadonlar allaqachon qurilgan. Ular shartnomasi toʻxtatilgan "
-        + "mijozlardan qaytib kelgan va qayta sotuvga chiqarilgan.",
+        "Bu xonadonlar shartnomasi bekor qilingan mijozlardan qaytgan "
+        + "va qayta sotuvga chiqarilgan.",
       steps: [
         { t: "Xonadon tanlanadi", d: "Qavat va kvadratura boʻyicha." },
         { t: "Hujjat tekshiriladi", d: "Oldingi shartnoma yopilganligi tasdiqlanadi." },
         { t: "Yangi shartnoma", d: "Toʻgʻridan-toʻgʻri IMARAT Development bilan." },
         { t: "Toʻlov", d: "100% yoki muddatli toʻlov varianti." },
-        { t: "Kalit", d: "Tayyor bino — kutish yoʻq." },
+        { t: "Kalit", d: "Shartnomada belgilangan tartibda." },
       ],
     },
     studio: {
       title: "21–23 m² studio xonadon",
       body:
-        "Bir kishilik yoki juftlik uchun toʻliq mustaqil xonadon: alohida oshxona zonasi, "
-        + "sanuzel, balkon. Ijaraga berish uchun ham eng likvid format.",
+        "Toʻliq mustaqil xonadon: oshxona zonasi, sanuzel, balkon. "
+        + "Ijara uchun eng likvid format.",
       planLabel: "Planirovka",
       tourLabel: "Xonadon boʻylab yurish",
       areaLabel: "Maydon",
@@ -265,8 +260,8 @@ export const S = {
     intro: {
       title: "Investorlar VIP klubi",
       body:
-        "Bizda allaqachon xonadon olgan mijozlar uchun yopiq klub. "
-        + "Ilk aʼzolar uchun shartlar eng yaxshisi boʻladi.",
+        "Xonadon olgan mijozlar uchun yopiq klub. "
+        + "Ilk aʼzolarga — eng yaxshi shartlar.",
       badge: "Ilk aʼzolar uchun",
     },
     perks: {
@@ -282,9 +277,7 @@ export const S = {
     condition: {
       title: "Aʼzo boʻlish sharti",
       rule: "1 yil ichida kamida 1 ta 100% toʻlangan shartnoma",
-      body:
-        "Shart oddiy: yil davomida hech boʻlmaganda bitta xonadon toʻliq toʻlansin. "
-        + "Shundan keyin aʼzolik va barcha bonuslar ochiladi.",
+      body: "Bitta xonadon toʻliq toʻlansin — aʼzolik va barcha bonuslar ochiladi.",
     },
     bonuses: {
       title: "Keyingi xarid uchun bonuslar",
@@ -298,9 +291,7 @@ export const S = {
     },
     fivePlusOne: {
       title: "5+1 aksiyasi",
-      body:
-        "Kamida 5 ta xonadon xarid qilinsa, 6-si boʻyicha chegirma "
-        + "boshlangʻich toʻlov foiziga tenglashadi.",
+      body: "5 ta xonadon xarid qilinsa, 6-siga chegirma toʻlov foiziga teng.",
       rule50: "50% toʻlov bilan 5 ta xonadon → 6-siga 50% chegirma",
       rule100: "100% toʻlov bilan 5 ta xonadon → 6-si sovgʻaga",
       dialPaid: "Toʻlov",
@@ -314,8 +305,8 @@ export const S = {
     master: {
       title: "Sergeli City",
       body:
-        "Bitta uy emas — butun mahalla. Yopiq hovlilar, piyodalar boʻylab uzluksiz "
-        + "yoʻlaklar, avtomobil yer ostiga tushirilgan.",
+        "Bitta uy emas — butun mahalla. Yopiq hovlilar, piyoda yoʻlaklar, "
+        + "avtomobillar yer ostida.",
       caption: "Bosh reja",
     },
     gate: { title: "Kirish darvozasi", caption: "Loyihaning yuzi" },
@@ -340,8 +331,7 @@ export const S = {
       // "Uchta" over a four-item list is arithmetic the room can check; the
       // fourth pin is an existing neighbour, not a building site.
       body:
-        "Loyihaning qiymatini bino emas, uning atrofi belgilaydi. "
-        + "Yaqin atrofda uchta yirik obyekt bir vaqtda qurilmoqda, "
+        "Qiymatni bino emas, atrof belgilaydi. Uchta yirik obyekt qurilmoqda, "
         + "toʻrtinchisi — qoʻshni Eco Park.",
       pins: [
         { t: "Yangi Toshkent xalqaro aeroporti", d: "Loyiha yonida" },
@@ -396,9 +386,7 @@ export const S = {
     },
     cta: {
       title: "Keyingi qadam",
-      body:
-        "Xonadonni band qilish, katalog va toʻliq shartlar — Telegram botimizda. "
-        + "QR kodni telefon kamerasi bilan skanerlang.",
+      body: "Band qilish, katalog va toʻliq shartlar — Telegram botda.",
       scan: "Skanerlang",
       handleFallback: "@ImaratDevelopmentBot",
     },

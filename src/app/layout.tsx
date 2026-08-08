@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Playfair, Playfair_Display, Inter, JetBrains_Mono, Caveat } from "next/font/google";
+import { Unbounded, Manrope, Inter, JetBrains_Mono } from "next/font/google";
 import { OfflineReady } from "@/deck/OfflineReady";
 import "./globals.css";
 
@@ -7,42 +7,22 @@ import "./globals.css";
 // The Latin subset carries U+02BB/02BC, the ʻ in "oʻzbek" and "gʻisht".
 //
 // Both Cyrillic subsets, not just the first: Google's `cyrillic` range stops at
-// U+045F (plus Ґґ and Ұұ), which covers ў but not ғ U+0493, қ U+049B or ҳ U+04B3
-// — three letters Uzbek cannot do without. They live in `cyrillic-ext`, and
-// without it /preflight reports them as tofu in JetBrains Mono.
+// U+045F, which covers ў but not ғ U+0493, қ U+049B or ҳ U+04B3 — three letters
+// Uzbek cannot do without. They live in `cyrillic-ext`.
 //
-// Playfair Display is the exception, and not by choice: Google ships it as
-// cyrillic | latin | latin-ext | vietnamese only. `npx tsx scripts/glyph-audit.mts`
-// counts what that costs — 12 of the 42 titles need ғ Қ қ ҳ, the cover
-// ("Оёғимиз остидаги замин") and the closing "Раҳмат!" among them — and at
-// 92 px a fallback serif inside a Playfair word is not subtle.
-//
-// So the four glyphs come from Playfair, the variable sibling by the same
-// designer, sitting behind Playfair Display in --font-display. Ordering is what
-// keeps it to four: Playfair Display is asked first and covers every other
-// letter, so Playfair is only ever reached for cyrillic-ext. Naming that one
-// subset does not narrow the @font-face unicode-ranges — Google returns all
-// five either way — it narrows what gets preloaded, which is the file we want.
-// The opsz axis (5–1200) then lets font-optical-sizing pick display cuts at
-// Title sizes on its own, which is what keeps the two faces in step.
-//
-// The ordering that makes this work lives in globals.css, not here:
-// adjustFontFallback: false is accepted by the types but does not reach the
-// emitted CSS under Turbopack, so --font-display spells the stack out instead.
+// Inter is loaded purely as the glyph safety net: it carries ʻ ғ ҳ қ Ғ Ҳ Қ ў in
+// every weight, so it sits second in each font stack (see globals.css) and
+// answers for anything the primary face lacks before any local fallback can.
 
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin", "latin-ext", "cyrillic"],
-  weight: ["400", "500", "600", "700", "800", "900"],
-  style: ["normal", "italic"],
+const unbounded = Unbounded({
+  variable: "--font-unbounded",
+  subsets: ["latin", "latin-ext", "cyrillic", "cyrillic-ext"],
   display: "block",
 });
 
-const playfairExt = Playfair({
-  variable: "--font-playfair-ext",
-  subsets: ["cyrillic-ext"],
-  axes: ["opsz"],
-  style: ["normal", "italic"],
+const manrope = Manrope({
+  variable: "--font-manrope",
+  subsets: ["latin", "latin-ext", "cyrillic", "cyrillic-ext"],
   display: "block",
 });
 
@@ -60,13 +40,6 @@ const tech = JetBrains_Mono({
   display: "block",
 });
 
-const caveat = Caveat({
-  variable: "--font-caveat",
-  subsets: ["latin", "latin-ext", "cyrillic", "cyrillic-ext"],
-  weight: ["400", "600", "700"],
-  display: "block",
-});
-
 export const metadata: Metadata = {
   title: "IMARAT Development — 9-avgust webinar",
   description: "Sifat taklif emas, majburiyat.",
@@ -77,14 +50,14 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#17161a",
+  themeColor: "#04120C",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="uz"
-      className={`${playfair.variable} ${playfairExt.variable} ${inter.variable} ${tech.variable} ${caveat.variable} h-full`}
+      className={`${unbounded.variable} ${manrope.variable} ${inter.variable} ${tech.variable} h-full`}
     >
       <body className="h-full antialiased">
         {children}

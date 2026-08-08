@@ -1,12 +1,12 @@
 "use client";
 
 import { motion } from "motion/react";
-import { EASE, STAGE_H, STAGE_W, type SlideProps } from "@/deck/types";
+import { EASE, type SlideProps } from "@/deck/types";
 import { Reveal } from "@/deck/Reveal";
 import { useLang } from "@/content/lang";
 import { t, type L } from "@/content/i18n";
-import { At, Backdrop, Body, Caption, Kicker, M, Rule, Slide, Title, tone } from "@/ui/layout";
-import { SketchLine } from "@/ui/sketch";
+import { At, Backdrop, Body, Caption, Chip, Kicker, M, Rule, Slide, Title, tone } from "@/ui/layout";
+import { Glow, Mesh, Wipe } from "@/ui/vivid";
 import { ExpandCorner } from "@/deck/Lightbox";
 
 /**
@@ -16,8 +16,10 @@ import { ExpandCorner } from "@/deck/Lightbox";
  */
 
 /**
- * Chapter title card. The number is set enormous and cropped by the margin so
- * it reads as a printed section divider rather than as a heading.
+ * Chapter title card. A huge emerald-tinted numeral bleeds off the bottom-left
+ * corner; when the chapter has an image it arrives as a rounded card on the
+ * right rather than a full-bleed backdrop, so the type always sits on clean
+ * paper (or clean night) and the palette stays loud.
  */
 export function ChapterOpener({
   n,
@@ -35,55 +37,104 @@ export function ChapterOpener({
   image?: string;
 }) {
   const lang = useLang();
+  const dark = theme === "dark";
   const accent = tone.ACCENT[theme];
 
   return (
     <Slide theme={theme} grid={false}>
-      {image && <Backdrop src={image} theme={theme} scrim="left" opacity={theme === "dark" ? 0.5 : 0.35} />}
-      {image && <ExpandCorner item={{ kind: "image", src: image }} light={theme === "dark"} />}
+      <Mesh variant={dark ? "night" : "paper"} />
 
-      {/* The giant numeral, bled off the right edge. */}
+      {/* The giant numeral, cropped by the bottom-left corner. */}
       <motion.div
         data-bleed
         initial={false}
-        animate={{ opacity: 1, x: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.7, ease: EASE }}
         className="tnum font-display"
         style={{
           position: "absolute",
-          right: -46,
-          top: 96,
-          fontSize: 620,
-          lineHeight: 0.78,
-          fontWeight: 600,
+          left: -34,
+          bottom: -168,
+          fontSize: 660,
+          lineHeight: 0.8,
+          fontWeight: 700,
           letterSpacing: "-0.06em",
-          color: theme === "dark" ? "rgba(244,241,234,0.07)" : "rgba(43,42,40,0.06)",
+          color: dark ? "rgba(62,214,106,0.10)" : "rgba(0,168,104,0.10)",
           userSelect: "none",
+          pointerEvents: "none",
         }}
       >
         {String(n).padStart(2, "0")}
       </motion.div>
 
-      <At x={M.left} y={392} w={1180}>
-        <Reveal at={0} step={step} y={22}>
-          <Kicker theme={theme} color={accent}>
-            {`Boʻlim ${String(n).padStart(2, "0")}`}
-          </Kicker>
+      {image ? (
+        <>
+          <Glow x={1440} y={520} r={430} color={dark ? "62,214,106" : "0,168,104"} opacity={dark ? 0.22 : 0.14} />
+          <Wipe
+            on
+            dir="left"
+            duration={0.85}
+            style={{
+              position: "absolute",
+              left: 1104,
+              top: 148,
+              width: 656,
+              height: 744,
+              borderRadius: 40,
+              overflow: "hidden",
+              boxShadow: dark
+                ? "0 32px 80px rgba(0,0,0,0.5)"
+                : "0 32px 80px rgba(10,31,20,0.16)",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={image}
+              alt=""
+              draggable={false}
+              onError={(e) => {
+                e.currentTarget.style.opacity = "0";
+              }}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: 40,
+                border: dark
+                  ? "1px solid rgba(244,251,244,0.14)"
+                  : "1px solid rgba(10,31,20,0.08)",
+                pointerEvents: "none",
+              }}
+            />
+          </Wipe>
+          <ExpandCorner item={{ kind: "image", src: image }} light={dark} />
+        </>
+      ) : (
+        <Glow x={1560} y={260} r={420} color={dark ? "62,214,106" : "0,168,104"} opacity={dark ? 0.16 : 0.1} />
+      )}
+
+      <At x={M.left} y={image ? 316 : 356} w={image ? 860 : 1400}>
+        <Reveal at={0} step={step} y={18}>
+          <Chip theme={theme} filled size={21}>
+            {`Boʻlim ${String(n).padStart(2, "0")} / 06`}
+          </Chip>
         </Reveal>
 
-        <Reveal at={0} step={step} y={26} delay={0.08} style={{ marginTop: 22 }}>
-          <Title theme={theme} size={132} style={{ letterSpacing: "-0.03em" }}>
+        <Reveal at={0} step={step} y={28} delay={0.08} style={{ marginTop: 34 }}>
+          <Title theme={theme} size={image ? 116 : 152} style={{ letterSpacing: "-0.03em" }}>
             {t(title, lang)}
           </Title>
         </Reveal>
 
-        <Reveal at={0} step={step} delay={0.18} style={{ marginTop: 34 }}>
-          <Rule w={168} color={accent} delay={0.24} />
+        <Reveal at={0} step={step} delay={0.2} style={{ marginTop: 36 }}>
+          <Rule w={148} thickness={4} color={accent} delay={0.26} />
         </Reveal>
 
         {lead && (
-          <Reveal at={0} step={step} delay={0.26} style={{ marginTop: 30 }}>
-            <Body theme={theme} size={34} style={{ maxWidth: 840 }}>
+          <Reveal at={0} step={step} delay={0.28} style={{ marginTop: 30 }}>
+            <Body theme={theme} size={33} style={{ maxWidth: 820 }}>
               {t(lead, lang)}
             </Body>
           </Reveal>
@@ -137,7 +188,7 @@ export function ShowcaseSlide({
           // Inherited by every glyph in the block. The kicker is the weak link
           // — small, letterspaced, leaf green, and sitting at the top of the
           // block where the scrim has already thinned out over white facade.
-          textShadow: theme === "dark" ? "0 2px 20px rgba(20,19,18,0.72)" : "none",
+          textShadow: theme === "dark" ? "0 2px 20px rgba(5,24,16,0.72)" : "none",
         }}
       >
         <Reveal at={1} step={step} y={24}>
@@ -180,6 +231,7 @@ export function SplitSlide({
   colW?: number;
 }) {
   const lang = useLang();
+  const dark = theme === "dark";
   return (
     <Slide theme={theme}>
       <At x={M.left} y={M.top + 44} w={640}>
@@ -191,7 +243,7 @@ export function SplitSlide({
           </Reveal>
         )}
         <Reveal at={0} step={step} y={20} delay={0.05} style={{ marginTop: kicker ? 22 : 0 }}>
-          <Title theme={theme} size={72}>
+          <Title theme={theme} size={66}>
             {t(title, lang)}
           </Title>
         </Reveal>
@@ -206,25 +258,22 @@ export function SplitSlide({
         {children}
       </At>
 
-      {/* The spine: a pencil line between the argument and its evidence. */}
-      <svg
-        style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}
-        width={STAGE_W}
-        height={STAGE_H}
-      >
-        <SketchLine
-          x1={colX - 78}
-          y1={M.top + 30}
-          x2={colX - 78}
-          y2={M.bottom - 60}
-          seed={17}
-          amp={1.6}
-          on={step >= 1}
-          stroke={theme === "dark" ? "rgba(244,241,234,0.22)" : "rgba(43,42,40,0.18)"}
-          width={1.5}
-          duration={0.8}
-        />
-      </svg>
+      {/* The spine between the argument and its evidence. */}
+      <motion.div
+        initial={false}
+        animate={{ scaleY: step >= 1 ? 1 : 0 }}
+        transition={{ duration: 0.7, ease: EASE }}
+        style={{
+          position: "absolute",
+          left: colX - 78,
+          top: M.top + 30,
+          width: 2,
+          height: M.bottom - 60 - (M.top + 30),
+          background: dark ? "rgba(244,251,244,0.14)" : "rgba(10,31,20,0.1)",
+          transformOrigin: "top center",
+          borderRadius: 2,
+        }}
+      />
     </Slide>
   );
 }
@@ -245,9 +294,11 @@ export function StatementSlide({
   theme?: "paper" | "dark";
 }) {
   const lang = useLang();
+  const dark = theme === "dark";
   const accent = tone.ACCENT[theme];
   return (
     <Slide theme={theme} grid={false}>
+      <Mesh variant={dark ? "night" : "paper"} />
       <div
         style={{
           position: "absolute",
@@ -257,7 +308,7 @@ export function StatementSlide({
           padding: `0 ${M.left}px`,
         }}
       >
-        <div style={{ maxWidth: 1320, textAlign: "center" }}>
+        <div style={{ maxWidth: 1360, textAlign: "center" }}>
           {kicker && (
             <Reveal at={0} step={step} y={14}>
               <Caption theme={theme} align="center">
@@ -266,13 +317,13 @@ export function StatementSlide({
             </Reveal>
           )}
           <Reveal at={0} step={step} y={22} delay={0.06} style={{ marginTop: kicker ? 26 : 0 }}>
-            <Title theme={theme} size={92} align="center">
+            <Title theme={theme} size={88} align="center">
               {t(title, lang)}
             </Title>
           </Reveal>
           {accentTitle && (
             <Reveal at={1} step={step} y={22} style={{ marginTop: 22 }}>
-              <Title theme={theme} size={92} align="center" color={accent}>
+              <Title theme={theme} size={88} align="center" color={accent}>
                 {t(accentTitle, lang)}
               </Title>
             </Reveal>

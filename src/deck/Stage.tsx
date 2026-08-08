@@ -13,7 +13,7 @@ import { STAGE_H, STAGE_W } from "./types";
  */
 export function Stage({
   children,
-  letterbox = "#17161a",
+  letterbox = "#04120C",
 }: {
   children: React.ReactNode;
   letterbox?: string;

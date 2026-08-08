@@ -218,7 +218,7 @@ export function Deck() {
           <LightboxProvider value={setLightbox}>
             <div
               className="absolute inset-0 overflow-hidden"
-              style={{ background: dark ? "#1c1b19" : "#f4f1ea" }}
+              style={{ background: dark ? "#051810" : "#FFFFFF" }}
             >
               <AnimatePresence mode="sync" custom={state.dir} initial={false}>
                 <motion.div
@@ -281,10 +281,10 @@ export function Deck() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.24, ease: EASE }}
                 className="absolute inset-0 z-50 grid place-items-center"
-                style={{ background: "#f4f1ea" }}
+                style={{ background: "#FFFFFF" }}
               >
-                <div className="font-hand text-ash" style={{ fontSize: 44 }}>
-                  ● ● ●
+                <div style={{ fontSize: 44, color: "#00A868", letterSpacing: "0.4em" }}>
+                  ●●●
                 </div>
               </motion.div>
             )}

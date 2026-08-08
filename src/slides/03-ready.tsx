@@ -34,7 +34,7 @@ export function ReadyOpen({ step }: SlideProps) {
       step={step}
       title={S.chapters.c3.title}
       lead={S.chapters.c3.lead}
-      image="/media/banners/banner-05.webp"
+      image="/media/renders/render-025.webp"
     />
   );
 }

@@ -57,7 +57,6 @@ import {
  */
 
 const render = (n: string) => `/media/renders/render-${n}.webp`;
-const banner = (n: string) => `/media/banners/banner-${n}.webp`;
 
 const LIFE = [
   "playground",
@@ -110,7 +109,8 @@ export const DECK: SlideDef[] = [
   {
     id: "q-seismic",
     chapter: 1,
-    steps: 4,
+    // 5: the last step zooms the map into Tashkent after the city is marked.
+    steps: 5,
     theme: "dark",
     label: S.quake.seismic.title,
     Component: QuakeSeismic,
@@ -190,7 +190,7 @@ export const DECK: SlideDef[] = [
     steps: 1,
     theme: "paper",
     label: S.chapters.c2.title,
-    assets: [banner("03")],
+    assets: [render("004")],
     Component: EscrowOpen,
   },
   {
@@ -217,7 +217,7 @@ export const DECK: SlideDef[] = [
     steps: 1,
     theme: "paper",
     label: S.chapters.c3.title,
-    assets: [banner("05")],
+    assets: [render("025")],
     Component: ReadyOpen,
   },
   {
@@ -253,7 +253,7 @@ export const DECK: SlideDef[] = [
     steps: 1,
     theme: "paper",
     label: S.chapters.c4.title,
-    assets: [banner("07")],
+    assets: [render("011")],
     Component: VipOpen,
   },
   {
@@ -399,7 +399,7 @@ export const DECK: SlideDef[] = [
     steps: 1,
     theme: "paper",
     label: S.chapters.c6.title,
-    assets: [banner("09")],
+    assets: [render("027")],
     Component: OfferOpen,
   },
   {

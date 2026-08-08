@@ -26,9 +26,9 @@ export function Chrome({
 }) {
   const slide = deck[i];
   const chapter = chapters.find((c) => c.n === slide.chapter);
-  const fg = dark ? "rgba(244,241,234,0.62)" : "rgba(43,42,40,0.5)";
-  const track = dark ? "rgba(244,241,234,0.16)" : "rgba(43,42,40,0.14)";
-  const fill = dark ? "#3ED66A" : "#0E5C43";
+  const fg = dark ? "rgba(244,251,244,0.64)" : "rgba(10,31,20,0.52)";
+  const track = dark ? "rgba(244,251,244,0.16)" : "rgba(10,31,20,0.12)";
+  const fill = dark ? "#3ED66A" : "#00A868";
 
   const railW = STAGE_W - 320;
   const segments = chapters.map((c, idx) => {
@@ -42,6 +42,27 @@ export function Chrome({
       className="pointer-events-none absolute z-40"
       style={{ left: 0, top: 0, width: STAGE_W, height: STAGE_H }}
     >
+      {/* brand mark — every slide except the cover, which carries its own */}
+      {i > 0 && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={dark ? "/media/logos/imarat-white.webp" : "/media/logos/imarat-dark.webp"}
+          alt=""
+          draggable={false}
+          onError={(e) => {
+            e.currentTarget.style.opacity = "0";
+          }}
+          style={{
+            position: "absolute",
+            right: 160,
+            top: 46,
+            height: 34,
+            width: "auto",
+            opacity: dark ? 0.9 : 0.85,
+          }}
+        />
+      )}
+
       {/* chapter + counter */}
       <div
         className="absolute flex items-baseline gap-[18px] font-mono"
