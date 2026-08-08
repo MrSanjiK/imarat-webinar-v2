@@ -889,22 +889,39 @@ export function QuakeLab({ step }: SlideProps) {
 
       {/* Full-measure divider: the slide splits into claim above, evidence
           below, and the rule is what makes that read as a spec sheet. */}
-      <At x={M.left} y={520} w={1600}>
+      <At x={M.left} y={556} w={1600}>
         <Rule w={1600} thickness={1.5} color="rgba(214,236,220,0.22)" on={step >= 1} delay={0.2} />
       </At>
 
-      <At x={M.left} y={572} w={1600}>
+      {/* Names the row once, so the three cards can be pure numbers. */}
+      <At x={M.left} y={578} w={1600}>
+        <Reveal at={2} step={step} y={10}>
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 21,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: PAPER_3,
+            }}
+          >
+            {t(q.labPressLabel, lang)}
+          </div>
+        </Reveal>
+      </At>
+
+      <At x={M.left} y={636} w={1600}>
         <div style={{ display: "flex", gap: 40 }}>
           {N.testing.pressTonnes.map((tn, i) => (
             <Stagger key={tn} at={2} step={step} i={i} y={24} gap={0.1} style={{ flex: 1 }}>
-              <Card dark h={288} radius={28} style={{ width: "100%", padding: "44px 44px" }}>
+              <Card dark h={228} radius={28} style={{ width: "100%", padding: "40px 44px" }}>
                 <div
                   style={{
                     width: 56,
                     height: 5,
                     borderRadius: 3,
                     background: ACC,
-                    marginBottom: 34,
+                    marginBottom: 28,
                   }}
                 />
                 <div

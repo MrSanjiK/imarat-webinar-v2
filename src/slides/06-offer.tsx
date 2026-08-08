@@ -197,7 +197,10 @@ export function OfferFirstDay({ step }: SlideProps) {
 
   return (
     <Slide grid={false}>
-      <Backdrop src="/media/renders/render-016.webp" theme="paper" scrim="left" opacity={0.55} />
+      {/* Full strength, not the 0.55 this used to carry: the left scrim already
+          clears the text column, and dimming the whole plate only bleached the
+          facade on the right to grey. */}
+      <Backdrop src="/media/renders/render-016.webp" theme="paper" scrim="left" />
       <ExpandCorner item={{ kind: "image", src: "/media/renders/render-016.webp" }} light={false} />
 
       <At x={M.left} y={200} w={860} z={10}>
@@ -422,7 +425,11 @@ export function OfferEnd({ step }: SlideProps) {
 
   return (
     <Slide theme="dark" grid={false}>
-      <Backdrop src="/media/renders/render-008.webp" theme="dark" scrim="full" opacity={0.34} />
+      {/* The deck sits here for the whole Q&A, so it is the frame people look
+          at longest. At 0.34 under a full scrim the aerial went flat green.
+          A left ramp instead: the text column stays protected, the city on
+          the right stays a photograph. */}
+      <Backdrop src="/media/renders/render-008.webp" theme="dark" scrim="left" opacity={0.78} />
       <Glow x={1500} y={260} r={460} color="62,214,106" opacity={0.18} />
 
       <At

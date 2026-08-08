@@ -321,12 +321,14 @@ export function CityLife({ step }: SlideProps) {
       <Glow x={1620} y={180} r={420} color="201,241,106" opacity={0.3} />
       <Glow x={180} y={880} r={380} color="0,168,104" opacity={0.14} />
 
-      <At x={M.left} y={M.top + 6} w={1180}>
+      {/* 60/1400, not 78/1180: at 78 the headline wraps to two lines in both
+          alphabets and its second line lands underneath the mosaic's top row. */}
+      <At x={M.left} y={M.top + 6} w={1400}>
         <Reveal at={0} step={step} y={18}>
           <Kicker color={V.emerald}>{t(S.brand.project, lang)}</Kicker>
         </Reveal>
         <Reveal at={0} step={step} y={26} delay={0.07} style={{ marginTop: 20 }}>
-          <Title size={78} style={{ letterSpacing: "-0.026em" }}>
+          <Title size={60} style={{ letterSpacing: "-0.026em" }}>
             {t(c.title, lang)}
           </Title>
         </Reveal>
@@ -380,7 +382,12 @@ export function CityLife({ step }: SlideProps) {
                   }}
                   style={{
                     width: "100%",
-                    height: "100%",
+                    // The small tiles are 292 × 210, so `cover` already scales
+                    // the 1080² source to 292² and clips everything below 72%.
+                    // The tall anchors are 502 on a 348-wide box, so `cover`
+                    // scales to height and the whole source shows — burned-in
+                    // headline included. 140% forces the same 72% window.
+                    height: m.h > 300 ? "140%" : "100%",
                     objectFit: "cover",
                     objectPosition: "center top",
                     display: "block",

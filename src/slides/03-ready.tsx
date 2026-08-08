@@ -160,8 +160,11 @@ export function ReadyProcess({ step }: SlideProps) {
 
   const CARD_W = 296;
   const GAP = 30;
-  const RAIL_Y = 428;
-  const ROW_Y = 462;
+  /** 320 is the tallest Cyrillic card plus its bottom padding — card 02 runs to
+   *  288. Anything taller opens a band of dead white under every caption. */
+  const CARD_H = 320;
+  const RAIL_Y = 416;
+  const ROW_Y = 450;
 
   return (
     <Slide grid={false}>
@@ -225,7 +228,7 @@ export function ReadyProcess({ step }: SlideProps) {
                 >
                   <Card
                     w={CARD_W}
-                    h={384}
+                    h={CARD_H}
                     radius={26}
                     style={{ padding: "28px 28px", boxSizing: "border-box" }}
                   >

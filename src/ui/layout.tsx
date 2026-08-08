@@ -557,9 +557,16 @@ export function Backdrop({
   const chromeGuard =
     `linear-gradient(0deg, rgba(${base},0.94) 0%, rgba(${base},0.88) 8%, rgba(${base},0.5) 14%, rgba(${base},0) 24%)`;
 
+  // The brand mark sits in the top-right corner of every slide but the cover,
+  // flat one-colour with no plate behind it. A left ramp is at zero up there,
+  // so on a render with facade or sky in that corner the mark half-disappears.
+  // An ellipse, not a band — a band would flatten the sky across the top.
+  const markGuard =
+    `radial-gradient(560px 320px at 100% 0%, rgba(${base},0.86) 0%, rgba(${base},0.52) 46%, rgba(${base},0) 78%)`;
+
   const grad =
     scrim === "left"
-      ? `${chromeGuard}, linear-gradient(90deg, rgba(${base},0.94) 0%, rgba(${base},0.82) 34%, rgba(${base},0.12) 72%, rgba(${base},0) 100%)`
+      ? `${markGuard}, ${chromeGuard}, linear-gradient(90deg, rgba(${base},0.94) 0%, rgba(${base},0.82) 34%, rgba(${base},0.12) 72%, rgba(${base},0) 100%)`
       : scrim === "bottom"
         ? // Five stops rather than three: the title block reaches ~48% up the
           // frame in Cyrillic, and a two-stop ramp is already down to 0.16

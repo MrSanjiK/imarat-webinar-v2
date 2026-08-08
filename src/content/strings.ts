@@ -39,7 +39,9 @@ export const S = {
   chapters: {
     c1: { n: 1, title: { latn: "Zilzila", cyrl: "Зилзила" }, lead: "Yer qimirlaganda binoni nima ushlab qoladi?" },
     c2: { n: 2, title: { latn: "Escrow", cyrl: "Эскроу" }, lead: "Pulingiz qayerda turadi va qachon harakatlanadi." },
-    c3: { n: 3, title: { latn: "9 700 $ uylar", cyrl: "9 700 $ уйлар" }, lead: "Bu narx qanday paydo boʻldi?" },
+    // Non-breaking spaces inside the price: at the opener's 116 px the title
+    // wraps, and the only acceptable break is after the currency.
+    c3: { n: 3, title: { latn: "9 700 $ uylar", cyrl: "9 700 $ уйлар" }, lead: "Bu narx qanday paydo boʻldi?" },
     c4: { n: 4, title: { latn: "VIP Club", cyrl: "VIP Club" }, lead: "Eski mijozlar uchun yopiq klub." },
     c5: { n: 5, title: { latn: "Sergeli City", cyrl: "Сергели Сити" }, lead: "Loyihaning oʻzi — havodan va koʻcha darajasidan." },
     c6: { n: 6, title: { latn: "Aksiya shartlari", cyrl: "Акция шартлари" }, lead: "Faqat bugungi ishtirokchilar uchun." },
@@ -160,7 +162,10 @@ export const S = {
       axisAmp: "tezlanish",
       stamp: "SINOVDAN OʻTDI",
       labTitle: "Oʻz laboratoriyamiz",
-      labBody: "Gidravlik press — 100, 150 va 200 tonna. Har partiya beton sinaladi.",
+      // The three tonnages are the cards below; naming them here made the
+      // slide say the same numbers twice.
+      labBody: "Har partiya beton gidravlik pressda sinaladi.",
+      labPressLabel: "Gidravlik press",
     },
     close: {
       title: "Zilziladan qoʻrqish kerakmi?",

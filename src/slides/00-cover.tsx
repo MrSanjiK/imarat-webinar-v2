@@ -84,6 +84,9 @@ export function Cover({ step }: SlideProps) {
         </div>
       </Wipe>
 
+      {/* The project lockup is nearly square (900 × 758) — a leaf mark stacked
+          over a wordmark. Below ~56 px the wordmark stops resolving and the
+          whole thing reads as a smudge, which is worse than not showing it. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/media/logos/sergeli-dark.webp"
@@ -94,11 +97,11 @@ export function Cover({ step }: SlideProps) {
         }}
         style={{
           position: "absolute",
-          left: cardX + 6,
-          top: cardY + cardH + 26,
-          height: 30,
+          left: cardX + 4,
+          top: cardY + cardH + 30,
+          height: 72,
           width: "auto",
-          opacity: 0.85,
+          opacity: 0.9,
         }}
       />
 
