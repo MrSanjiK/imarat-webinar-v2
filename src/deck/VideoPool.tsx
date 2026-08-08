@@ -189,7 +189,7 @@ export function VideoPool({ children }: { children: React.ReactNode }) {
                 }}
                 src={attached.includes(v.id) ? v.src : undefined}
                 poster={v.poster}
-                muted
+                muted={s?.muted !== false}
                 playsInline
                 preload="auto"
                 loop={s?.loop ?? true}
