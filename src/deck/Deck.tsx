@@ -38,6 +38,7 @@ export function Deck() {
   const [state, dispatch] = useReducer(reducer, { i: 0, step: 0, dir: 1 } as DeckState);
   const [overview, setOverview] = useState(false);
   const [blackout, setBlackout] = useState(false);
+  const [webinar, setWebinar] = useState(false);
   const [lightbox, setLightbox] = useState<LightboxItem | null>(null);
   const [idle, setIdle] = useState(true);
   const { lang, toggle: toggleLang } = useLangCtx();
@@ -105,6 +106,9 @@ export function Deck() {
           break;
         case "blackout":
           setBlackout((v) => !v);
+          break;
+        case "webinar":
+          setWebinar((v) => !v);
           break;
         case "lang":
           toggleLang();
@@ -213,7 +217,7 @@ export function Deck() {
       className={`deck-root fixed inset-0 ${idle && !overview ? "cursor-none" : ""}`}
       onClick={onPointer}
     >
-      <Stage>
+      <Stage containerStyle={webinar ? { right: "42%" } : undefined}>
         <VideoPool>
           <LightboxProvider value={setLightbox}>
             <div
@@ -291,6 +295,51 @@ export function Deck() {
           </AnimatePresence>
         </VideoPool>
       </Stage>
+
+      {/* Webinar camera panel — right 42% of screen when W is active */}
+      {webinar && (
+        <div
+          className="fixed top-0 right-0 bottom-0"
+          style={{
+            width: "42%",
+            background: "#030E07",
+            borderLeft: "1px solid rgba(0,168,104,0.14)",
+            display: "grid",
+            placeItems: "center",
+            zIndex: 200,
+            pointerEvents: "none",
+          }}
+        >
+          <div style={{ textAlign: "center", color: "rgba(0,168,104,0.32)", userSelect: "none" }}>
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="14" width="34" height="26" rx="5" />
+              <path d="M38 22l10-7v22l-10-7" />
+            </svg>
+            <div style={{ fontSize: 13, letterSpacing: "0.18em", marginTop: 14, textTransform: "uppercase" }}>
+              Kamera
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* W indicator */}
+      {webinar && (
+        <div
+          className="fixed"
+          style={{
+            bottom: 24,
+            right: "43%",
+            fontSize: 12,
+            letterSpacing: "0.14em",
+            color: "rgba(0,168,104,0.55)",
+            fontFamily: "monospace",
+            pointerEvents: "none",
+            zIndex: 201,
+          }}
+        >
+          ◫ WEBINAR
+        </div>
+      )}
     </div>
   );
 }

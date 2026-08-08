@@ -122,7 +122,7 @@ export const S = {
       step2: "Parma armaturani uzdi",
       step3: "Yuk qoʻshni kolonnaga oʻtdi",
       step4: "Zanjirli qulash",
-      note: "Bitta teshik binoni qulatmaydi. Yuzta teshik qulatadi.",
+      note: "Albatta, birgina bunday teshik sabab binoga zarar yetmasligi mumkin. Ammo, yuzlab bunday teshiklar esa binoni qulatishi ham mumkin.",
       /** Callouts on the RebarCollapse diagram. */
       drillLabel: "Parma",
       cutLabel: "Uzilgan sterjenlar",
@@ -137,7 +137,7 @@ export const S = {
         "2023-yil 6-fevral, M7.8. Eng ogʻir talafot Antakyaga tushdi. "
         + "Sabab faqat zilzila emas — nazoratsiz qurilish edi.",
       t1999: "1999 — Izmit zilzilasi, qoidalar qattiqlashtirildi",
-      t2018: "2018 — amnistiya: tekshirilmagan binolar qonuniylashtirildi",
+      t2018: "2018 — amnistiya (korrupsion yoʻllar bilan): tekshirilmagan binolar qonuniylashtirildi",
       t2023: "2023 — M7.8",
       amnestyLabel: "amnistiya bilan qonuniylashtirilgan bino",
       deathsLabel: "qurbon",
@@ -155,7 +155,7 @@ export const S = {
       subtitle: "Vibrodinamik sinov",
       body:
         "Obyektga qoʻzgʻatkich va akselerometrlar oʻrnatiladi — "
-        + "bino MSK 8–9 ball darajasida sinovdan oʻtkaziladi.",
+        + "bino MSK-64 shkalasi boʻyicha 1-dan 8 ballik zilzilaga bardoshligini isbotlaydi.",
       sensorLabel: "Akselerometr",
       exciterLabel: "Vibratsiya qoʻzgʻatkichi",
       axisTime: "vaqt",
@@ -210,6 +210,7 @@ export const S = {
         { t: "Narx real qiymatga yaqinlashadi", d: "Sunʼiy arzon takliflar yoʻqoladi." },
         { t: "Kuchli quruvchilar qoladi", d: "Moliyaviy intizom majburiy boʻladi." },
         { t: "Xaridor himoyalanadi", d: "Bank — uchinchi, betaraf tomon." },
+        { t: "Quruvchi aniq moliyaviy reja tuzadi", d: "Xaridor kayfiyatiga qarab shartnomani bekor qila olmaydi." },
       ],
     },
   },
@@ -315,7 +316,7 @@ export const S = {
       body:
         "Bitta uy emas — butun mahalla. Yopiq hovlilar, piyoda yoʻlaklar, "
         + "avtomobillar yer ostida.",
-      caption: "Bosh reja",
+      caption: "Sifat taklif emas, majburiyat!",
     },
     gate: { title: "Kirish darvozasi", caption: "Loyihaning yuzi" },
     night: { title: "Tungi fasad", caption: "Kechqurun yoritish sxemasi" },

@@ -142,9 +142,33 @@ export function Cover({ step }: SlideProps) {
         </Reveal>
 
         <Reveal at={1} step={step} style={{ marginTop: 32 }}>
-          <Body size={30} style={{ maxWidth: 800 }}>
-            {t(S.cover.subtitle, lang)}
-          </Body>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" }}>
+            {[
+              { label: S.chapters.c1.title, color: "#FF5E3A" },
+              { label: S.chapters.c2.title, color: V.emerald },
+              { label: S.chapters.c3.title, color: V.gold },
+              { label: S.chapters.c5.title, color: V.forest },
+            ].map(({ label, color }, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  fontSize: 26,
+                  fontWeight: 500,
+                  color: V.ink,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                {t(label, lang)}
+                {i < 3 && (
+                  <div style={{ width: 1, height: 22, background: "rgba(10,31,20,0.18)", marginLeft: 4 }} />
+                )}
+              </div>
+            ))}
+          </div>
         </Reveal>
       </At>
 

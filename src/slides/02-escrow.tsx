@@ -99,18 +99,18 @@ export function EscrowWhat({ step }: SlideProps) {
   );
 }
 
-const IMPACT_ACCENT = [V.emerald, V.gold, V.forest, V.emerald];
+const IMPACT_ACCENT = [V.emerald, V.gold, V.forest, V.emerald, V.gold];
 
 /**
  * step 0 — the claim.
- * steps 1–4 — one consequence per click, as four flat cards.
+ * steps 1–5 — one consequence per click, as five flat cards.
  */
 export function EscrowImpact({ step }: SlideProps) {
   const lang = useLang();
   const e = S.escrow.impact;
 
-  const cardW = 372;
-  const gap = 37;
+  const cardW = 330;
+  const gap = 28;
 
   return (
     <Slide theme="paper" grid={false}>
@@ -137,7 +137,7 @@ export function EscrowImpact({ step }: SlideProps) {
         </Reveal>
       </At>
 
-      {/* Four consequences, one per click. The numeral is the loud element. */}
+      {/* Five consequences, one per click. */}
       {e.points.map((p, i) => {
         const accent = IMPACT_ACCENT[i];
         return (
@@ -155,20 +155,20 @@ export function EscrowImpact({ step }: SlideProps) {
             }}
           >
             <Card w={cardW} h={452} radius={30}>
-              <div style={{ position: "absolute", left: 36, top: 38, width: cardW - 72 }}>
+              <div style={{ position: "absolute", left: 30, top: 38, width: cardW - 60 }}>
                 <Kicker color={accent} size={19}>
                   {String(i + 1).padStart(2, "0")}
                 </Kicker>
                 <div style={{ marginTop: 20 }}>
                   <Rule w={54} color={accent} thickness={4} on={step >= i + 1} delay={0.24} />
                 </div>
-                <Title size={35} style={{ marginTop: 30, letterSpacing: "-0.02em", lineHeight: 1.16 }}>
+                <Title size={31} style={{ marginTop: 30, letterSpacing: "-0.02em", lineHeight: 1.16 }}>
                   {t(p.t, lang)}
                 </Title>
               </div>
 
-              <div style={{ position: "absolute", left: 36, bottom: 38, width: cardW - 72 }}>
-                <Caption size={23} style={{ lineHeight: 1.42 }}>
+              <div style={{ position: "absolute", left: 30, bottom: 38, width: cardW - 60 }}>
+                <Caption size={21} style={{ lineHeight: 1.42 }}>
                   {t(p.d, lang)}
                 </Caption>
               </div>

@@ -204,7 +204,7 @@ export const DECK: SlideDef[] = [
   {
     id: "e-impact",
     chapter: 2,
-    steps: 5,
+    steps: 6,
     theme: "paper",
     label: S.escrow.impact.title,
     Component: EscrowImpact,
@@ -323,7 +323,7 @@ export const DECK: SlideDef[] = [
   {
     id: "ci-gate",
     chapter: 5,
-    steps: 2,
+    steps: 1,
     theme: "dark",
     label: S.city.gate.title,
     assets: [render("024")],

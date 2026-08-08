@@ -39,6 +39,7 @@ export type Intent =
   | "blackout"
   | "lang"
   | "fullscreen"
+  | "webinar"
   | "help"
   | "escape"
   | null;
@@ -66,6 +67,9 @@ export function intentFor(e: KeyboardEvent): Intent {
     case "f":
     case "F":
       return "fullscreen";
+    case "w":
+    case "W":
+      return "webinar";
     case "?":
       return "help";
   }

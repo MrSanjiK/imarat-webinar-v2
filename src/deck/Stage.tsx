@@ -14,9 +14,12 @@ import { STAGE_H, STAGE_W } from "./types";
 export function Stage({
   children,
   letterbox = "#04120C",
+  containerStyle,
 }: {
   children: React.ReactNode;
   letterbox?: string;
+  /** Override the fixed container — use to reserve space (e.g. right:'42%') for webinar mode. */
+  containerStyle?: React.CSSProperties;
 }) {
   const [fitted, setFitted] = useState({ scale: 0, x: 0, y: 0 });
   const boxRef = useRef<HTMLDivElement>(null);
@@ -49,8 +52,8 @@ export function Stage({
   return (
     <div
       ref={boxRef}
-      className="fixed inset-0 overflow-hidden"
-      style={{ background: letterbox }}
+      className="fixed overflow-hidden"
+      style={{ top: 0, left: 0, right: 0, bottom: 0, background: letterbox, ...containerStyle }}
     >
       {/* Centring is done by translate, not by grid or flex alignment: a 1920 px
           child inside a narrower container overflows, and overflow alignment
