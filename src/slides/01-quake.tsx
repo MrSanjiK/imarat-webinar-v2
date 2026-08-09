@@ -106,9 +106,10 @@ function Key({ color, label }: { color: string; label: string }) {
 // ── 01 · Chapter opener ──────────────────────────────────────────────────────
 
 /**
- * Deliberately imageless. A Sergeli City render behind a heading about
- * buildings killing people would read as advertising the disaster, so the
- * chapter opens on type alone: the bleeding numeral, the word, the rule.
+ * The image is archive, not a render: a Sergeli facade behind a heading about
+ * buildings killing people would read as advertising the disaster. A 1966
+ * frame of a collapsed brick wall is documentary, and it sets the chapter's
+ * subject before a word is spoken.
  */
 export function QuakeOpen({ step }: SlideProps) {
   return (
@@ -118,6 +119,7 @@ export function QuakeOpen({ step }: SlideProps) {
       theme={TH}
       title={S.chapters.c1.title}
       lead={S.chapters.c1.lead}
+      image="/media/video/archive-1966-b-poster.webp"
     />
   );
 }
@@ -246,7 +248,10 @@ export function QuakeSeismic({ step }: SlideProps) {
 
       <At x={650} y={128} w={1130} z={4}>
         <div style={{ height: 790 }}>
-          <SeismicMapUZ step={step} />
+          {/* The map's own step 0 is a blank frame. Offsetting by one lets the
+              country outline draw together with the title instead of costing
+              a press to reveal an empty stage. */}
+          <SeismicMapUZ step={step + 1} />
         </div>
       </At>
 
@@ -264,17 +269,17 @@ export function QuakeSeismic({ step }: SlideProps) {
 
       <At x={M.left} y={476} w={460} z={10}>
         <div style={{ display: "grid", gap: 20 }}>
-          <Stagger at={2} step={step} i={0} y={12}>
+          <Stagger at={1} step={step} i={0} y={12}>
             <Key color={ACC} label={t(q.legendFault, lang)} />
           </Stagger>
-          <Stagger at={2} step={step} i={1} y={12}>
+          <Stagger at={1} step={step} i={1} y={12}>
             <Key color={V.ember} label={t(q.legendCity, lang)} />
           </Stagger>
         </div>
       </At>
 
       <At x={M.left} y={636} w={470} z={10}>
-        <Reveal at={3} step={step} y={20}>
+        <Reveal at={2} step={step} y={20}>
           <Title theme={TH} size={36} color={V.leaf} style={{ lineHeight: 1.26 }}>
             {t(q.annotation, lang)}
           </Title>
@@ -390,7 +395,7 @@ export function QuakePanelMonolith({ step }: SlideProps) {
 // ── 05 · Mass ────────────────────────────────────────────────────────────────
 
 /**
- * Steps: 0 the claim · 1 the two wall masses · 2 F = m · a · 3 the result.
+ * Steps: 0 the claim and the two wall masses · 1 F = m · a · 2 the result.
  * The formula is the oversized element — it is the one line of the hour that
  * an engineer and a first-time buyer both already understand.
  */
@@ -410,9 +415,9 @@ export function QuakeMass({ step }: SlideProps) {
       </At>
 
       <At x={780} y={838} w={1000}>
-        <Reveal at={1} step={step} y={12}>
+        <Reveal at={0} step={step} y={12} delay={0.5}>
           <div style={{ display: "flex", gap: 56 }}>
-            <Caption theme={TH} size={22} color={PAPER_3}>
+            <Caption theme={TH} size={22} color={V.ember}>
               {`${t(q.brickLabel, lang)} — ${N.materials.brickWallDensity[0]}–${N.materials.brickWallDensity[1]} ${q.unit}`}
             </Caption>
             <Caption theme={TH} size={22} color={ACC}>
@@ -435,7 +440,7 @@ export function QuakeMass({ step }: SlideProps) {
           <Rule w={130} color={V.gold} thickness={4} delay={0.2} />
         </Reveal>
 
-        <Reveal at={1} step={step} style={{ marginTop: 42 }}>
+        <Reveal at={0} step={step} delay={0.3} style={{ marginTop: 42 }}>
           <Body theme={TH} size={27} color={PAPER_2}>
             {t(q.body, lang)}
           </Body>
@@ -443,7 +448,7 @@ export function QuakeMass({ step }: SlideProps) {
       </At>
 
       <At x={M.left} y={640} w={580}>
-        <Reveal at={2} step={step} y={22}>
+        <Reveal at={1} step={step} y={22}>
           <div
             className="font-display tnum"
             style={{
@@ -463,7 +468,7 @@ export function QuakeMass({ step }: SlideProps) {
       </At>
 
       <At x={M.left} y={820} w={580}>
-        <Reveal at={3} step={step} y={18}>
+        <Reveal at={2} step={step} y={18}>
           <Chip theme={TH} color={ACC} filled size={21}>
             {t(q.result, lang)}
           </Chip>

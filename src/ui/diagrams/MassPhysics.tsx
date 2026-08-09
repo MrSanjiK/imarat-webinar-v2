@@ -12,20 +12,19 @@ import { V } from "@/ui/vivid";
 /**
  * MassPhysics — chapter 1 (dark), slide 05 "Ortiqcha vazn". Slot 880 × 600.
  *
- * v2 "IMARAT Vivid": flat vector, saturated fills wiped in under a clip rect.
- * The physics justification for the material choice, drawn as an argument that
- * assembles itself.
+ * The frame is split into two bands that never share vertical space: mass on
+ * top (columns, readings, the F/m/a legend in the empty right half) and force
+ * below (two arrows off one origin, measured against each other). Every label
+ * owns a horizontal strip of its own, so no reading can land on top of another.
  *
- * Step map (slide q-mass has 4 steps, 0…3)
- *   0 — empty.
- *   1 — two density columns fill from the ground up: brick to 1875 kg/m³ in
- *       bone white, aerated block to 550 kg/m³ in emerald. Counters tick to the
- *       two figures on a .tnum face; the unit and the material name sit with
- *       each column.
- *   2 — the mass block dims to half. F = m · a belongs to the slide, which sets
- *       it at 84 px in the left column; the diagram must not echo it in grey at
- *       the same moment, so here the step is a hand-off, not a second reading.
- *   3 — two force arrows extend along their own axis. The brick one is ~3.4×
+ * Step map (slide q-mass has 3 steps, 0…2)
+ *   0 — the two density columns fill from the ground up: brick to 1875 kg/m³ in
+ *       ember, aerated block to 550 kg/m³ in emerald. Counters tick on a .tnum
+ *       face above each column; the material name sits under the ground line.
+ *   1 — the mass band dims and the F/m/a legend fades into the right half. The
+ *       slide sets "F = m · a" at 84 px in its left column; this is the key to
+ *       that line, not a second copy of it.
+ *   2 — two force arrows extend from a shared origin. The brick one is ~3.4×
  *       the aerated one — the ratio is computed from the figures and clamped
  *       into the claimed 2–4× band, then measured and called out.
  *
@@ -47,23 +46,33 @@ const RATIO = clamp(BRICK / AERATED, N.materials.lighterFactor[0], N.materials.l
 
 // ── layout (viewBox 880 × 600) ───────────────────────────────────────────────
 
-const BASE_Y = 310;
+/** Band A — mass. Ground line, columns above it, material names below. */
+const BASE_Y = 320;
 const COL_W = 122;
-const BRICK_H = 215;
+const BRICK_H = 200;
 const AER_H = (AERATED / BRICK) * BRICK_H;
 const BRICK_CX = 139;
 /** Spaced for the *labels*, not the columns: "Gʻisht terimi" is wider than 122. */
 const AER_CX = 340;
+const NAME_Y = BASE_Y + 34;
 
-const ARROW_X0 = 78;
-const ARROW_LEN = 700;
-const BRICK_ARROW_Y = 418;
-const AER_ARROW_Y = 528;
-const MEASURE_Y = 480;
+/** The right half of band A is empty once the columns are placed. */
+const LEG_X = 524;
+const LEG_Y = 168;
+const LEG_STEP = 52;
 
-const BASE = "rgba(244,251,244,0.9)";
+/** Band B — force. One origin, two arrows, a measure strung between the tips. */
+const ARROW_X0 = 150;
+const ARROW_LEN = 660;
+const BRICK_ARROW_Y = 425;
+const AER_ARROW_Y = 560;
+const MEASURE_Y = 500;
+const AER_LEN = ARROW_LEN / RATIO;
+
+const BRICK_C = V.ember;
 const DIM = "rgba(244,251,244,0.35)";
-const MID = "rgba(244,251,244,0.6)";
+const MID = "rgba(244,251,244,0.62)";
+const BASE = "rgba(244,251,244,0.92)";
 
 // ── kit ──────────────────────────────────────────────────────────────────────
 
@@ -195,8 +204,8 @@ function Column({
 
 /**
  * A force arrow that extends along its own axis. The shaft is a plain rect and
- * the head a triangle, both inside a group scaled on X from a local origin at
- * the tail — no geometry attribute animates.
+ * the head a triangle, both inside a group revealed by a sliding clip rect —
+ * no geometry attribute animates.
  */
 function ForceArrow({
   y,
@@ -204,7 +213,7 @@ function ForceArrow({
   on,
   color,
   delay = 0,
-  thick = 12,
+  thick = 16,
 }: {
   y: number;
   len: number;
@@ -241,229 +250,255 @@ function ForceArrow({
   );
 }
 
+/** One column's reading: value, unit — stacked above the column, never on it. */
+function Reading({
+  cx,
+  top,
+  value,
+  unit,
+  color,
+  on,
+  delay,
+}: {
+  cx: number;
+  top: number;
+  value: number;
+  unit: string;
+  color: string;
+  on: boolean;
+  delay: number;
+}) {
+  return (
+    <motion.g
+      initial={false}
+      animate={{ opacity: on ? 1 : 0, y: on ? 0 : 12 }}
+      transition={{ duration: 0.4, ease: EASE, delay: on ? delay : 0 }}
+    >
+      <text
+        x={cx}
+        y={top - 56}
+        fill={color}
+        fontSize={60}
+        textAnchor="middle"
+        className="font-display tnum"
+        style={{ fontWeight: 700 }}
+      >
+        {value}
+      </text>
+      <text
+        x={cx}
+        y={top - 26}
+        fill={MID}
+        fontSize={19}
+        textAnchor="middle"
+        className="font-mono"
+        style={{ letterSpacing: "0.08em" }}
+      >
+        {unit}
+      </text>
+    </motion.g>
+  );
+}
+
 // ── diagram ──────────────────────────────────────────────────────────────────
 
 export function MassPhysics({ step }: { step: number }) {
   const lang = useLang();
   const q = S.quake.mass;
 
-  const mass = step >= 1;
-  const formula = step >= 2;
-  const force = step >= 3;
+  const formula = step >= 1;
+  const force = step >= 2;
 
-  const brickV = useCount(BRICK, mass, 1.1, 0.35);
-  const aerV = useCount(AERATED, mass, 1.1, 0.5);
+  const brickV = useCount(BRICK, true, 1.1, 0.35);
+  const aerV = useCount(AERATED, true, 1.1, 0.5);
 
-  /** The leading glyph of "F = m · a", straight from strings — it labels both
-   *  force arrows at step 3 and is never retyped here. */
+  /** The leading glyph of "F = m · a" — it labels both arrows and is never
+   *  retyped here. The legend below spells the same three letters out. */
   const glyphs = useMemo(() => q.formula.split(/\s+/).filter(Boolean), [q.formula]);
+  const F = glyphs[0] ?? "F";
+
+  const legend: Array<[string, string, string]> = [
+    [F, t("Kuch", lang), "(N)"],
+    ["m", t("Massa", lang), "(kg)"],
+    ["a", t("Tezlanish", lang), "(m/s²)"],
+  ];
 
   return (
     <svg viewBox="0 0 880 600" preserveAspectRatio="xMidYMid meet" className="w-full h-full">
-      {/* ══ step 1 · mass ═══════════════════════════════════════════════════ */}
+      {/* ══ band A · mass ═══════════════════════════════════════════════════ */}
 
-      {/* The whole mass block steps back once the formula lands on the slide.
-          Group opacity multiplies with each child's own gate, so the entrance
+      {/* The mass band steps back once the formula lands on the slide. Group
+          opacity multiplies with each child's own gate, so the entrance
           animations are untouched — this only sets the ceiling. */}
       <motion.g
         initial={false}
-        animate={{ opacity: formula ? 0.5 : 1 }}
-        transition={{ duration: 0.5, ease: EASE, delay: formula ? 0.2 : 0 }}
+        animate={{ opacity: formula ? 0.45 : 1 }}
+        transition={{ duration: 0.5, ease: EASE, delay: formula ? 0.15 : 0 }}
       >
-      <Draw
-        d={`M 52 ${BASE_Y} H ${AER_CX + COL_W / 2 + 24}`}
-        on={mass}
-        stroke={DIM}
-        w={3}
-        dur={0.7}
-      />
+        <Draw
+          d={`M 52 ${BASE_Y} H ${AER_CX + COL_W / 2 + 26}`}
+          on
+          stroke={DIM}
+          w={3}
+          dur={0.7}
+        />
 
-      <Column
-        cx={BRICK_CX}
-        h={BRICK_H}
-        on={mass}
-        fill="rgba(220,80,50,0.25)"
-        stroke="#E05032"
-        bands={11}
-        delay={0.05}
-      />
-      <Column
-        cx={AER_CX}
-        h={AER_H}
-        on={mass}
-        fill="rgba(0,168,104,0.3)"
-        stroke={V.leaf}
-        bands={3}
-        delay={0.22}
-      />
+        <Column
+          cx={BRICK_CX}
+          h={BRICK_H}
+          on
+          fill="rgba(255,90,60,0.22)"
+          stroke={BRICK_C}
+          bands={11}
+          delay={0.05}
+        />
+        <Column
+          cx={AER_CX}
+          h={AER_H}
+          on
+          fill="rgba(0,168,104,0.3)"
+          stroke={V.leaf}
+          bands={3}
+          delay={0.22}
+        />
 
-      {/* readings */}
-      <motion.g
-        initial={false}
-        animate={{ opacity: mass ? 1 : 0, y: mass ? 0 : 12 }}
-        transition={{ duration: 0.4, ease: EASE, delay: mass ? 0.3 : 0 }}
-      >
-        <text
+        <Reading
+          cx={BRICK_CX}
+          top={BASE_Y - BRICK_H}
+          value={brickV}
+          unit={q.unit}
+          color={BRICK_C}
+          on
+          delay={0.3}
+        />
+        <Reading
+          cx={AER_CX}
+          top={BASE_Y - AER_H}
+          value={aerV}
+          unit={q.unit}
+          color={V.leaf}
+          on
+          delay={0.46}
+        />
+
+        <motion.text
           x={BRICK_CX}
-          y={BASE_Y - BRICK_H - 52}
-          fill="#E05032"
-          fontSize={72}
+          y={NAME_Y}
+          fill={BRICK_C}
+          fontSize={21}
           textAnchor="middle"
-          className="font-display tnum"
-          style={{ fontWeight: 700 }}
-        >
-          {brickV}
-        </text>
-        <text
-          x={BRICK_CX}
-          y={BASE_Y - BRICK_H - 18}
-          fill={MID}
-          fontSize={26}
-          textAnchor="middle"
-          className="font-display"
-          style={{ fontWeight: 700 }}
+          className="font-mono"
+          style={{ letterSpacing: "0.06em" }}
+          initial={false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: EASE, delay: 0.45 }}
         >
           {t(q.brickLabel, lang)}
-        </text>
-        <text
-          x={BRICK_CX}
-          y={BASE_Y - BRICK_H + 6}
-          fill={MID}
-          fontSize={20}
+        </motion.text>
+        <motion.text
+          x={AER_CX}
+          y={NAME_Y}
+          fill={V.leaf}
+          fontSize={21}
           textAnchor="middle"
           className="font-mono"
-          style={{ letterSpacing: "0.08em" }}
-        >
-          {q.unit}
-        </text>
-      </motion.g>
-
-      <motion.g
-        initial={false}
-        animate={{ opacity: mass ? 1 : 0, y: mass ? 0 : 12 }}
-        transition={{ duration: 0.4, ease: EASE, delay: mass ? 0.46 : 0 }}
-      >
-        <text
-          x={AER_CX}
-          y={BASE_Y - AER_H - 52}
-          fill={V.leaf}
-          fontSize={72}
-          textAnchor="middle"
-          className="font-display tnum"
-          style={{ fontWeight: 700 }}
-        >
-          {aerV}
-        </text>
-        <text
-          x={AER_CX}
-          y={BASE_Y - AER_H - 18}
-          fill={V.leaf}
-          fontSize={26}
-          textAnchor="middle"
-          className="font-display"
-          style={{ fontWeight: 700 }}
+          style={{ letterSpacing: "0.06em" }}
+          initial={false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: EASE, delay: 0.6 }}
         >
           {t(q.blockLabel, lang)}
-        </text>
-        <text
-          x={AER_CX}
-          y={BASE_Y - AER_H + 6}
-          fill={MID}
-          fontSize={20}
-          textAnchor="middle"
-          className="font-mono"
-          style={{ letterSpacing: "0.08em" }}
+        </motion.text>
+      </motion.g>
+
+      {/* ══ step 1 · the key to F = m · a, in the empty right half ══════════ */}
+
+      <Draw
+        d={`M ${LEG_X - 26} ${LEG_Y - 30} V ${LEG_Y + LEG_STEP * 2 + 12}`}
+        on={formula}
+        stroke={V.gold}
+        w={3}
+        dur={0.5}
+        delay={0.2}
+      />
+      {legend.map(([g, word, unit], i) => (
+        <motion.g
+          key={g}
+          initial={false}
+          animate={{ opacity: formula ? 1 : 0, x: formula ? 0 : -14 }}
+          transition={{ duration: 0.38, ease: EASE, delay: formula ? 0.3 + i * 0.09 : 0 }}
         >
-          {q.unit}
-        </text>
-      </motion.g>
+          <text
+            x={LEG_X}
+            y={LEG_Y + i * LEG_STEP}
+            fill={V.gold}
+            fontSize={30}
+            className="font-display"
+            style={{ fontWeight: 700 }}
+          >
+            {g}
+          </text>
+          <text
+            x={LEG_X + 44}
+            y={LEG_Y + i * LEG_STEP}
+            fill={BASE}
+            fontSize={26}
+            className="font-display"
+          >
+            {word}
+            <tspan
+              dx={12}
+              fill={MID}
+              fontSize={18}
+              className="font-mono"
+              style={{ letterSpacing: "0.06em" }}
+            >
+              {unit}
+            </tspan>
+          </text>
+        </motion.g>
+      ))}
 
+      {/* ══ step 2 · force ══════════════════════════════════════════════════ */}
+
+      <Draw d={`M 138 395 V ${AER_ARROW_Y + 22}`} on={force} stroke={DIM} w={2.5} dur={0.5} />
+
+      <ForceArrow y={BRICK_ARROW_Y} len={ARROW_LEN} on={force} color={BRICK_C} delay={0.12} />
+      <ForceArrow y={AER_ARROW_Y} len={AER_LEN} on={force} color={V.leaf} delay={0.42} />
+
+      {/* Arrow labels sit outside the shaft, left of the shared origin. */}
       <motion.text
-        x={BRICK_CX}
-        y={BASE_Y + 36}
-        fill="#E05032"
-        fontSize={21}
-        textAnchor="middle"
-        className="font-mono"
-        style={{ letterSpacing: "0.06em" }}
-        initial={false}
-        animate={{ opacity: mass ? 1 : 0, y: mass ? 0 : 8 }}
-        transition={{ duration: 0.35, ease: EASE, delay: mass ? 0.45 : 0 }}
-      >
-        {t(q.brickLabel, lang)}
-      </motion.text>
-      <motion.text
-        x={AER_CX}
-        y={BASE_Y + 36}
-        fill={V.leaf}
-        fontSize={21}
-        textAnchor="middle"
-        className="font-mono"
-        style={{ letterSpacing: "0.06em" }}
-        initial={false}
-        animate={{ opacity: mass ? 1 : 0, y: mass ? 0 : 8 }}
-        transition={{ duration: 0.35, ease: EASE, delay: mass ? 0.6 : 0 }}
-      >
-        {t(q.blockLabel, lang)}
-      </motion.text>
-      </motion.g>
-
-      {/* ══ step 2 · the mass block recedes; the formula lands on the slide ══ */}
-
-      {/* F=m·a legend — fades in at step 2, lower-left */}
-      <motion.g
-        initial={false}
-        animate={{ opacity: formula ? 1 : 0 }}
-        transition={{ duration: 0.4, ease: EASE, delay: formula ? 0.3 : 0 }}
-      >
-        {/* F row */}
-        <text x={60} y={542} fill="#E05032" fontSize={22} className="font-display" style={{ fontWeight: 700 }}>F</text>
-        <text x={80} y={542} fill={MID} fontSize={22} className="font-mono">= Kuch (N)</text>
-        {/* m row */}
-        <text x={60} y={566} fill="#E05032" fontSize={22} className="font-display" style={{ fontWeight: 700 }}>m</text>
-        <text x={80} y={566} fill={MID} fontSize={22} className="font-mono">= Massa (kg)</text>
-        {/* a row */}
-        <text x={60} y={590} fill="#E05032" fontSize={22} className="font-display" style={{ fontWeight: 700 }}>a</text>
-        <text x={80} y={590} fill={MID} fontSize={22} className="font-mono">= Tezlanish (m/s²)</text>
-      </motion.g>
-
-      {/* ══ step 3 · force ══════════════════════════════════════════════════ */}
-
-      <Draw d="M 66 372 V 566" on={force} stroke={DIM} w={2.5} dur={0.5} />
-
-      <ForceArrow y={BRICK_ARROW_Y} len={ARROW_LEN} on={force} color="#E05032" delay={0.12} thick={16} />
-      <ForceArrow y={AER_ARROW_Y} len={ARROW_LEN / RATIO} on={force} color={V.leaf} delay={0.42} thick={16} />
-
-      <motion.text
-        x={92}
-        y={BRICK_ARROW_Y - 26}
-        fill="#E05032"
-        fontSize={30}
+        x={122}
+        y={BRICK_ARROW_Y + 11}
+        fill={BRICK_C}
+        fontSize={32}
+        textAnchor="end"
         className="font-display"
-        style={{ fontWeight: 600 }}
+        style={{ fontWeight: 700 }}
         initial={false}
         animate={{ opacity: force ? 1 : 0 }}
         transition={{ duration: 0.3, delay: force ? 0.3 : 0 }}
       >
-        {glyphs[0] ?? "F"}
+        {F}
       </motion.text>
       <motion.text
-        x={92}
-        y={AER_ARROW_Y - 26}
+        x={122}
+        y={AER_ARROW_Y + 11}
         fill={V.leaf}
-        fontSize={30}
+        fontSize={32}
+        textAnchor="end"
         className="font-display"
-        style={{ fontWeight: 600 }}
+        style={{ fontWeight: 700 }}
         initial={false}
         animate={{ opacity: force ? 1 : 0 }}
         transition={{ duration: 0.3, delay: force ? 0.6 : 0 }}
       >
-        {glyphs[0] ?? "F"}
+        {F}
       </motion.text>
 
       {/* the measure across the difference between the two tips */}
       <Draw
-        d={`M ${ARROW_X0 + ARROW_LEN / RATIO} ${MEASURE_Y} H ${ARROW_X0 + ARROW_LEN}`}
+        d={`M ${ARROW_X0 + AER_LEN} ${MEASURE_Y} H ${ARROW_X0 + ARROW_LEN}`}
         on={force}
         stroke={MID}
         w={2.5}
@@ -471,7 +506,7 @@ export function MassPhysics({ step }: { step: number }) {
         dur={0.6}
       />
       <Draw
-        d={`M ${ARROW_X0 + ARROW_LEN / RATIO} ${MEASURE_Y - 11} V ${MEASURE_Y + 11} M ${
+        d={`M ${ARROW_X0 + AER_LEN} ${MEASURE_Y - 11} V ${MEASURE_Y + 11} M ${
           ARROW_X0 + ARROW_LEN
         } ${MEASURE_Y - 11} V ${MEASURE_Y + 11}`}
         on={force}
@@ -490,10 +525,10 @@ export function MassPhysics({ step }: { step: number }) {
             fill-box centre is already the glyph centre. A px origin would be
             re-based against that same bbox and push the pop off-centre. */}
         <text
-          x={ARROW_X0 + (ARROW_LEN / RATIO + ARROW_LEN) / 2}
-          y={MEASURE_Y - 18}
+          x={ARROW_X0 + (AER_LEN + ARROW_LEN) / 2}
+          y={MEASURE_Y - 20}
           fill={BASE}
-          fontSize={46}
+          fontSize={44}
           textAnchor="middle"
           className="font-display tnum"
           style={{ fontWeight: 600 }}

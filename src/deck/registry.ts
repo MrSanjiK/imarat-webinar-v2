@@ -95,8 +95,9 @@ export const DECK: SlideDef[] = [
     steps: 1,
     theme: "dark",
     label: S.chapters.c1.title,
-    // No backdrop by design — a Sergeli City render behind a chapter heading
-    // about buildings killing people reads as advertising the disaster.
+    // No backdrop render by design — a Sergeli City facade behind a chapter
+    // heading about buildings killing people reads as advertising the
+    // disaster. The image used is a 1966 archive frame.
     Component: QuakeOpen,
   },
   {
@@ -110,8 +111,9 @@ export const DECK: SlideDef[] = [
   {
     id: "q-seismic",
     chapter: 1,
-    // 5: the last step zooms the map into Tashkent after the city is marked.
-    steps: 5,
+    // 4: the map starts drawn (its step 0 is blank and is skipped), so the
+    // presses are zones → city → Tashkent marquee.
+    steps: 4,
     theme: "dark",
     label: S.quake.seismic.title,
     Component: QuakeSeismic,
@@ -127,7 +129,9 @@ export const DECK: SlideDef[] = [
   {
     id: "q-mass",
     chapter: 1,
-    steps: 4,
+    // 3, not 4: the diagram's columns and the claim now land together on entry,
+    // so the presses are formula → result.
+    steps: 3,
     theme: "dark",
     label: S.quake.mass.title,
     Component: QuakeMass,

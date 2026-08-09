@@ -11,19 +11,18 @@ import { V } from "@/ui/vivid";
  * VIPCard — chapter 4, hosted by `VipPerks`. Slot is exactly 1600 × 620 stage
  * pixels; every coordinate below is authored against that box.
  *
- * Landscape membership pass, matching the client's own VIP.png reference:
- * an ivory left panel carrying the IMARAT mark and a gold "VIP Pass" script,
- * split by a diagonal seam from a solid forest-green right panel that holds
- * the Sergeli City VIP Club mark and the five perk rows.
+ * Landscape membership pass: an ivory left panel carrying the IMARAT mark and
+ * the gold "VIP Pass" lockup, split by a diagonal seam from a solid forest
+ * right panel holding the five perk rows.
+ *
+ * The right panel carries perks and nothing else. It used to repeat the
+ * project mark above them, which cost 90 px of the card's only 480 and pushed
+ * the last two rows into each other; the branding already lives on the ivory
+ * half, so the rows now own the whole green field and are centred in it.
  *
  * Step map (VipPerks, 6 steps)
- *   0 — card flips in on rotateY (mount animation, one-shot). Gold sheen
- *       sweeps across the ivory panel.
- *   1 — perk 01 lands.
- *   2 — perk 02.
- *   3 — perk 03.
- *   4 — perk 04.
- *   5 — perk 05.
+ *   0 — card flips in on rotateY (mount animation, one-shot); gold sheen
+ *       sweeps the ivory panel. 1…5 — one perk row each.
  *
  * Only transform and opacity animate. The sheen is a gradient bar moved by
  * translateX — never a filter. Shadows are static.
@@ -32,57 +31,61 @@ import { V } from "@/ui/vivid";
 const SLOT_W = 1600;
 const SLOT_H = 620;
 
-const CARD = { x: 0, y: 80, w: 1400, h: 460, r: 32 } as const;
-const LEFT_W = 440;
+const CARD = { x: 20, y: 58, w: 1560, h: 482, r: 34 } as const;
+/** Ivory half. The seam is a 92 px diagonal cut starting at this edge. */
+const LEFT_W = 496;
+const SEAM = 92;
 
-const ROW_H = 58;
+/** Five rows, centred: 5 × ROW_H + 4 × ROW_GAP = 396 in a 482 card. */
+const ROW_H = 72;
 const ROW_GAP = 9;
-const ROWS_TOP = 96;
+const ROWS_TOP = Math.round((CARD.h - (5 * ROW_H + 4 * ROW_GAP)) / 2);
+const ROW_X = LEFT_W + 28;
 
 /** Frozen keyframe arrays — inline arrays are new refs every render and would
  *  restart the sweep on any unrelated re-render. */
-const SHEEN_X = [-220, 700];
+const SHEEN_X = [-240, 760];
 const SHEEN_O = [0, 0.5, 0.5, 0];
 const SHEEN_T = [0, 0.14, 0.66, 1];
 
 const ICONS: Record<number, React.ReactNode> = {
   0: (
-    // gift — VIP promos & offers
-    <g fill="none" stroke={V.gold} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <rect x={3} y={9} width={18} height={12} rx={1.5} />
-      <path d="M3 13h18" />
-      <path d="M12 9v12" />
-      <path d="M12 9c-1.2-3-6-3.4-6-1s3.6 1.6 6 1c2.4.6 6 1.4 6-1s-4.8-2-6 1Z" />
+    // paper plane — the VIP Telegram group
+    <g fill="none" stroke={V.gold} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 3 10.5 14.2" />
+      <path d="M21 3 14.4 21l-3.9-6.8L3.6 10.3 21 3Z" />
     </g>
   ),
   1: (
-    // shield — priority service
-    <g fill="none" stroke={V.gold} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" />
-      <path d="M9 12l2 2 4-4" />
+    // key — exclusive listings opened only to members
+    <g fill="none" stroke={V.gold} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx={8} cy={8} r={4.4} />
+      <path d="M11.2 11.2 20 20" />
+      <path d="M17 17l-2.2 2.2M19.4 14.6l-2.2 2.2" />
     </g>
   ),
   2: (
-    // handshake — trusted partnership
-    <g fill="none" stroke={V.gold} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 11l4-3 3 1.5 3-1.5 4 3" />
-      <path d="M7 8v6l3 2.4a1.6 1.6 0 0 0 2.2-.3l.3-.4" />
-      <path d="M17 8v6l-3 2.4" />
+    // percent — discounts not available in open sale
+    <g fill="none" stroke={V.gold} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 19 19 5" />
+      <circle cx={7.5} cy={7.5} r={2.5} />
+      <circle cx={16.5} cy={16.5} r={2.5} />
     </g>
   ),
   3: (
-    // diamond — curated projects
-    <g fill="none" stroke={V.gold} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 4h12l3 5-9 11L3 9l3-5Z" />
-      <path d="M3 9h18M9 4l-1.5 5L12 20l4.5-11L15 4" />
+    // ticket — closed events and site visits
+    <g fill="none" stroke={V.gold} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 8V6h18v2a2.4 2.4 0 0 0 0 4.8V18H3v-5.2A2.4 2.4 0 0 0 3 8Z" />
+      <path d="M14 6v1.6M14 11.2v1.6M14 16.4V18" />
     </g>
   ),
   4: (
-    // percent — special discounts
-    <g fill="none" stroke={V.gold} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 19L19 5" />
-      <circle cx={7.5} cy={7.5} r={2.5} />
-      <circle cx={16.5} cy={16.5} r={2.5} />
+    // headset — a dedicated manager, no queue
+    <g fill="none" stroke={V.gold} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+      <rect x={2.5} y={13.5} width={4} height={6} rx={1.6} />
+      <rect x={17.5} y={13.5} width={4} height={6} rx={1.6} />
+      <path d="M19.5 19.5v.5a2.5 2.5 0 0 1-2.5 2.5h-2.5" />
     </g>
   ),
 };
@@ -100,11 +103,11 @@ export function VIPCard({ step }: { step: number }) {
           top: CARD.y,
           width: CARD.w,
           height: CARD.h,
-          perspective: 1800,
+          perspective: 2000,
         }}
       >
         <motion.div
-          initial={{ rotateY: -76, opacity: 0 }}
+          initial={{ rotateY: -74, opacity: 0 }}
           animate={{ rotateY: 0, opacity: 1 }}
           transition={{
             rotateY: { duration: 1.0, ease: EASE },
@@ -117,7 +120,7 @@ export function VIPCard({ step }: { step: number }) {
             overflow: "hidden",
             background: V.paper,
             border: "1px solid rgba(10,31,20,0.08)",
-            boxShadow: "0 44px 90px rgba(10,31,20,0.22)",
+            boxShadow: "0 46px 96px rgba(10,31,20,0.24)",
           }}
         >
           {/* ── right panel: solid forest, cut by a diagonal seam ──────────── */}
@@ -125,136 +128,110 @@ export function VIPCard({ step }: { step: number }) {
             style={{
               position: "absolute",
               inset: 0,
-              left: LEFT_W - 90,
+              left: LEFT_W - SEAM,
               background: V.forest,
-              clipPath: "polygon(90px 0, 100% 0, 100% 100%, 0 100%)",
+              clipPath: `polygon(${SEAM}px 0, 100% 0, 100% 100%, 0 100%)`,
             }}
           >
-            {/* faint gold hairline along the seam */}
+            {/* gold hairline along the seam */}
             <div
+              aria-hidden
               style={{
                 position: "absolute",
-                left: 90,
+                left: SEAM,
                 top: 0,
                 bottom: 0,
                 width: 2,
                 background: `linear-gradient(180deg, transparent, ${V.gold}, transparent)`,
-                opacity: 0.5,
-                transform: "translateX(-1px) skewX(-11deg)",
+                opacity: 0.55,
+                transform: "translateX(-1px) skewX(-10.9deg)",
                 transformOrigin: "top",
               }}
             />
+          </div>
 
-            {/* Sergeli City mark */}
-            <div
-              style={{
-                position: "absolute",
-                left: 78,
-                top: 34,
-                right: 32,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <svg width={26} height={26} viewBox="0 0 26 26" fill="none">
-                <path
-                  d="M13 2c5 4 8 8.5 8 13a8 8 0 0 1-16 0c0-4.5 3-9 8-13Z"
-                  stroke={V.gold}
-                  strokeWidth={1.6}
-                />
-                <path d="M13 8v14" stroke={V.gold} strokeWidth={1.6} strokeLinecap="round" />
-              </svg>
-              <div>
+          {/* perk rows — outside the clipped panel so the diagonal cannot eat
+              a descender, positioned against the card instead */}
+          {perks.map((p, i) => {
+            const on = step >= i + 1;
+            return (
+              <motion.div
+                key={i}
+                initial={false}
+                animate={{ opacity: on ? 1 : 0, x: on ? 0 : 30 }}
+                transition={{ duration: 0.44, ease: EASE, delay: on ? 0.04 : 0 }}
+                style={{
+                  position: "absolute",
+                  left: ROW_X,
+                  right: 56,
+                  top: ROWS_TOP + i * (ROW_H + ROW_GAP),
+                  height: ROW_H,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 22,
+                }}
+              >
+                {/* index — gives the five rows a spine the eye can count */}
                 <div
-                  className="font-display"
-                  style={{ fontSize: 20, fontWeight: 600, color: V.paper, lineHeight: 1.05 }}
-                >
-                  {t(S.brand.project, lang)}
-                </div>
-                <div
-                  className="font-mono"
+                  className="font-mono tnum"
                   style={{
-                    fontSize: 11,
-                    letterSpacing: "0.24em",
-                    textTransform: "uppercase",
+                    width: 34,
+                    flexShrink: 0,
+                    fontSize: 15,
+                    letterSpacing: "0.1em",
                     color: V.gold,
-                    opacity: 0.85,
-                    marginTop: 2,
+                    opacity: 0.75,
                   }}
                 >
-                  VIP Club
+                  {String(i + 1).padStart(2, "0")}
                 </div>
-              </div>
-            </div>
 
-            {/* perk rows */}
-            <div style={{ position: "absolute", left: 78, top: ROWS_TOP, right: 40 }}>
-              {perks.map((p, i) => {
-                const on = step >= i + 1;
-                return (
-                  <motion.div
-                    key={i}
-                    initial={false}
-                    animate={{ opacity: on ? 1 : 0, x: on ? 0 : 26 }}
-                    transition={{ duration: 0.42, ease: EASE, delay: on ? i * 0.07 : 0 }}
+                <div
+                  aria-hidden
+                  style={{
+                    width: 46,
+                    height: 46,
+                    flexShrink: 0,
+                    borderRadius: 12,
+                    border: `1px solid rgba(240,178,62,0.42)`,
+                    background: "rgba(240,178,62,0.09)",
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  <svg width={23} height={23} viewBox="0 0 24 24">
+                    {ICONS[i]}
+                  </svg>
+                </div>
+
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    className="font-display"
                     style={{
-                      position: "absolute",
-                      top: i * (ROW_H + ROW_GAP),
-                      left: 0,
-                      right: 0,
-                      height: ROW_H,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 18,
-                      borderLeft: `2.5px solid ${V.gold}`,
-                      paddingLeft: 18,
+                      fontSize: 25,
+                      fontWeight: 600,
+                      color: V.paper,
+                      letterSpacing: "-0.012em",
+                      lineHeight: 1.1,
                     }}
                   >
-                    <div
-                      aria-hidden
-                      style={{
-                        width: 24,
-                        height: 24,
-                        flexShrink: 0,
-                        display: "grid",
-                        placeItems: "center",
-                      }}
-                    >
-                      <svg width={22} height={22} viewBox="0 0 24 24">
-                        {ICONS[i]}
-                      </svg>
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div
-                        className="font-display"
-                        style={{
-                          fontSize: 19,
-                          fontWeight: 600,
-                          color: V.paper,
-                          letterSpacing: "-0.01em",
-                          lineHeight: 1.15,
-                        }}
-                      >
-                        {t(p.t, lang)}
-                      </div>
-                      <div
-                        style={{
-                          marginTop: 3,
-                          fontSize: 14,
-                          fontWeight: 300,
-                          color: "rgba(244,251,244,0.62)",
-                          lineHeight: 1.25,
-                        }}
-                      >
-                        {t(p.d, lang)}
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
+                    {t(p.t, lang)}
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 5,
+                      fontSize: 17,
+                      fontWeight: 300,
+                      color: "rgba(244,251,244,0.66)",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {t(p.d, lang)}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
 
           {/* ── left panel: ivory, IMARAT + VIP Pass ───────────────────────── */}
           <div
@@ -263,91 +240,104 @@ export function VIPCard({ step }: { step: number }) {
               left: 0,
               top: 0,
               bottom: 0,
-              width: LEFT_W,
+              width: LEFT_W - SEAM,
+              padding: "40px 0 40px 46px",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              padding: "36px 0 32px 40px",
             }}
           >
             <div
               className="font-mono"
               style={{
                 fontSize: 13,
-                letterSpacing: "0.22em",
+                letterSpacing: "0.24em",
                 textTransform: "uppercase",
                 color: V.ink,
-                opacity: 0.85,
+                opacity: 0.8,
+                whiteSpace: "nowrap",
               }}
             >
               {t(S.brand.company, lang)}
             </div>
 
+            {/* Two lines, not one: "VIPPass" set inline overran the ivory half
+                and was clipped by the seam. Stacked, it also reads as a mark. */}
             <div>
               <div
                 className="font-display"
                 style={{
-                  fontSize: 88,
+                  fontSize: 96,
                   fontWeight: 700,
-                  lineHeight: 0.92,
-                  letterSpacing: "-0.03em",
+                  lineHeight: 0.86,
+                  letterSpacing: "-0.035em",
                   color: V.gold,
                 }}
               >
                 VIP
-                <span style={{ fontStyle: "italic", fontWeight: 500 }}>Pass</span>
               </div>
               <div
+                className="font-display"
                 style={{
-                  marginTop: 22,
-                  width: 130,
-                  height: 3,
-                  borderRadius: 2,
-                  background: V.gold,
+                  fontSize: 62,
+                  fontWeight: 500,
+                  fontStyle: "italic",
+                  lineHeight: 1,
+                  letterSpacing: "-0.02em",
+                  color: V.gold,
+                  opacity: 0.92,
+                  marginTop: 2,
                 }}
+              >
+                Pass
+              </div>
+              <div
+                style={{ marginTop: 20, width: 118, height: 3, borderRadius: 2, background: V.gold }}
               />
+            </div>
+
+            <div>
+              <div
+                className="font-display"
+                style={{ fontSize: 21, fontWeight: 600, color: V.ink, lineHeight: 1.1 }}
+              >
+                {t(S.brand.project, lang)}
+              </div>
               <div
                 className="font-mono"
                 style={{
-                  marginTop: 18,
-                  fontSize: 14,
-                  letterSpacing: "0.2em",
+                  marginTop: 6,
+                  fontSize: 12,
+                  letterSpacing: "0.26em",
                   textTransform: "uppercase",
                   color: V.ash,
                 }}
               >
-                Exclusive Member
+                VIP Club
               </div>
             </div>
+          </div>
 
-            <div style={{ height: 1 }} />
-
-            {/* Sheen sweep, clipped to the ivory panel */}
-            <div
-              aria-hidden
+          {/* Sheen sweep, clipped to the card */}
+          <div
+            aria-hidden
+            style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}
+          >
+            <motion.div
+              initial={{ x: SHEEN_X[0], opacity: 0 }}
+              animate={{ x: SHEEN_X, opacity: SHEEN_O }}
+              transition={{ duration: 1.15, delay: 0.7, times: SHEEN_T, ease: "linear" }}
               style={{
                 position: "absolute",
-                inset: 0,
-                overflow: "hidden",
-                pointerEvents: "none",
+                left: 0,
+                top: -90,
+                width: 110,
+                height: CARD.h + 180,
+                transform: "rotate(13deg)",
+                background:
+                  "linear-gradient(90deg, rgba(240,178,62,0) 0%, rgba(255,236,196,0.5) 50%, rgba(240,178,62,0) 100%)",
               }}
-            >
-              <motion.div
-                initial={{ x: SHEEN_X[0], opacity: 0 }}
-                animate={{ x: SHEEN_X, opacity: SHEEN_O }}
-                transition={{ duration: 1.1, delay: 0.7, times: SHEEN_T, ease: "linear" }}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: -80,
-                  width: 100,
-                  height: CARD.h + 160,
-                  transform: "rotate(14deg)",
-                  background:
-                    "linear-gradient(90deg, rgba(240,178,62,0) 0%, rgba(255,236,196,0.55) 50%, rgba(240,178,62,0) 100%)",
-                }}
-              />
-            </div>
+            />
           </div>
         </motion.div>
       </div>
