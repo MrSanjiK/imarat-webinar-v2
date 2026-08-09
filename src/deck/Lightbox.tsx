@@ -169,23 +169,20 @@ export function LightboxLayer({
 
     // Swapping to the full source resets the element, so the seek cannot happen
     // now: this effect runs in the commit *before* React re-renders with the new
-    // src. Wait for the swapped file's own metadata, then jump to the moment the
-    // slide was showing — expanding the shake test should not replay the four
-    // minutes of walk-up that precede it.
-    const start = def?.fullStart ?? 0;
+    // src. Wait for the swapped file's own metadata, then rewind to zero — the
+    // stage shows a fragment, but expanding is a request to watch the clip, and
+    // dropping the viewer mid-scene reads as a broken player.
     const onMeta = () => {
       if (full && !node.currentSrc.endsWith(def!.full!.split("/").pop()!)) return;
       node.removeEventListener("loadedmetadata", onMeta);
-      if (start > 0 && Number.isFinite(node.duration) && start < node.duration) {
-        node.currentTime = start;
-      }
+      node.currentTime = 0;
       node.muted = false;
       node.volume = 1;
       void node.play().catch(() => {});
     };
 
     if (full) node.addEventListener("loadedmetadata", onMeta);
-    else if (start === 0) node.currentTime = 0;
+    else node.currentTime = 0;
 
     return () => {
       node.removeEventListener("loadedmetadata", onMeta);
