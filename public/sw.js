@@ -138,5 +138,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // The `-full` clips are the untrimmed, audible cuts served only when the
+  // presenter expands a video. They are large — the 1966 reel alone is 52 MB —
+  // and answering a range from cache means reading the whole body into an
+  // ArrayBuffer to slice it. Doing that mid-webinar would stall the deck for
+  // longer than the seek it was meant to accelerate, so these go to the network
+  // and are never stored. Every clip the slides themselves play stays cached.
+  if (url.pathname.includes("-full.mp4")) return;
+
   event.respondWith(isImmutable(url) ? cacheFirst(request) : staleWhileRevalidate(request));
 });

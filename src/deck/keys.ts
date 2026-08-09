@@ -40,6 +40,8 @@ export type Intent =
   | "lang"
   | "fullscreen"
   | "webinar"
+  | "webinar-expand"
+  | "webinar-shrink"
   | "help"
   | "escape"
   | null;
@@ -70,6 +72,10 @@ export function intentFor(e: KeyboardEvent): Intent {
     case "w":
     case "W":
       return "webinar";
+    case "[":
+      return "webinar-shrink";
+    case "]":
+      return "webinar-expand";
     case "?":
       return "help";
   }

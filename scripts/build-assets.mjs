@@ -28,7 +28,9 @@ import QRCode from "qrcode";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const APP = resolve(__dirname, "..");
 const ROOT = resolve(APP, "..");
-const SRC = join(ROOT, "media-src");
+// The source media lives outside the app so `next dev` never walks 543 MB.
+// MEDIA_SRC lets it sit anywhere — the two repos are not always siblings.
+const SRC = process.env.MEDIA_SRC ? resolve(process.env.MEDIA_SRC) : join(ROOT, "media-src");
 const OUT = join(APP, "public", "media");
 const DOCS = join(ROOT, "docs");
 
@@ -57,6 +59,27 @@ const ARCHIVE_CUTS = [
   { id: "archive-1966-a", start: 22, dur: 18 },
   { id: "archive-1966-b", start: 96, dur: 20 },  // collapsed interiors
   { id: "archive-1966-c", start: 900, dur: 20 }, // the city clearing and rebuilding
+];
+
+// Untrimmed, with audio, for the lightbox. Never precached — these are only
+// fetched when the presenter actually expands a clip, so they are allowed to be
+// large. The archive film is a single 17-minute reel: all three slide cuts open
+// into it, each seeking to its own moment, so the presenter can scrub either way
+// from there.
+const FULL_CUTS = [
+  {
+    src: "1966-tashkent-archive.mp4",
+    out: "archive-1966-full.mp4",
+    // 17 minutes of 1966 film stock. Grain is what makes archive footage
+    // expensive to encode, so it is denoised first; the source is 600×480 and
+    // upscaling it here only bought bitrate, not detail.
+    vf: "hqdn3d=5:4:7:5",
+    crf: 31,
+  },
+  { src: "studio-tour.mp4", out: "studio-tour-full.mp4", vf: "scale=720:1280:flags=lanczos", crf: 24 },
+  { src: "vibro-test.mp4", out: "vibro-full.mp4", vf: "scale=720:1280:flags=lanczos", crf: 24 },
+  { src: "turkey-2023-long.mp4", out: "turkey-long-full.mp4", crf: 24 },
+  { src: "turkey-2023-short.mp4", out: "turkey-short-full.mp4", crf: 24 },
 ];
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -248,6 +271,19 @@ const X264 = (crf) => [
   "-an",
 ];
 
+/** Lightbox variant: the untrimmed source, with its audio kept. */
+const X264_FULL = (crf) => [
+  "-c:v", "libx264",
+  "-crf", String(crf),
+  "-preset", "medium",
+  "-profile:v", "high",
+  "-pix_fmt", "yuv420p",
+  "-movflags", "+faststart",
+  "-c:a", "aac",
+  "-b:a", "128k",
+  "-ac", "2",
+];
+
 const dst = (p) => p.split(/[\\/]/).pop();
 
 async function poster(mp4, at = 1.2) {
@@ -334,6 +370,22 @@ function buildVideo() {
         ...(s.vf ? ["-vf", s.vf] : []),
         ...X264(s.crf),
       ],
+    });
+  }
+
+  // Lightbox variants. The slide clips above are silent and, where the point of
+  // the slide is one moment, trimmed to it — right for a backdrop that loops
+  // under type for a minute. But when the presenter expands a clip the audience
+  // has asked to actually watch it, and a soundless 14-second stub of a
+  // 170-second shake test is the wrong answer. So each clip also gets an
+  // untrimmed cut with its audio kept, fetched only once the deck is idle.
+  for (const f of FULL_CUTS) {
+    const src = join(SRC, "video", f.src);
+    if (!existsSync(src)) continue;
+    jobs.push({
+      label: `${f.out} (full+audio)`,
+      out: join(OUT, "video", f.out),
+      args: ["-i", src, ...(f.vf ? ["-vf", f.vf] : []), ...X264_FULL(f.crf)],
     });
   }
 

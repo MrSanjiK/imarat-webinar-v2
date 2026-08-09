@@ -273,7 +273,7 @@ export function OfferInstallments({ step }: SlideProps) {
 
   return (
     <Slide>
-      <Backdrop src="/media/renders/render-009.webp" theme="paper" scrim="none" opacity={0.55} />
+      <Backdrop src="/media/renders/render-009.webp" theme="paper" scrim="none" opacity={0.05} />
       <Glow x={1560} y={880} r={420} color="240,178,62" opacity={0.16} />
 
       <At x={M.left} y={116} w={900}>

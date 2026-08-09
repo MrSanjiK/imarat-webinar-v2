@@ -109,8 +109,8 @@ export function EscrowImpact({ step }: SlideProps) {
   const lang = useLang();
   const e = S.escrow.impact;
 
-  const cardW = 330;
-  const gap = 28;
+  const cardW = 286;
+  const gap = 20;
 
   return (
     <Slide theme="paper" grid={false}>

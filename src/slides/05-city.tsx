@@ -149,20 +149,20 @@ function Plate({
         }}
       >
         {caption && (
-          <Reveal at={1} step={step} y={20}>
+          <Reveal at={0} step={step} y={20}>
             <Kicker theme="dark" color={V.leaf}>
               {t(caption, lang)}
             </Kicker>
           </Reveal>
         )}
 
-        <Reveal at={1} step={step} y={30} delay={0.08} style={{ marginTop: caption ? 22 : 0 }}>
+        <Reveal at={0} step={step} y={30} delay={0.08} style={{ marginTop: caption ? 22 : 0 }}>
           <Title theme="dark" size={104} style={{ letterSpacing: "-0.028em", lineHeight: 1.02 }}>
             {t(title, lang)}
           </Title>
         </Reveal>
 
-        <Reveal at={1} step={step} delay={0.22} style={{ marginTop: 30 }}>
+        <Reveal at={0} step={step} delay={0.22} style={{ marginTop: 30 }}>
           <div
             style={{
               display: "flex",
@@ -345,8 +345,8 @@ export function CityLife({ step }: SlideProps) {
         // not array order — the right-hand anchor is index 7 but arrives with
         // the top row, and paying 0.315 s of stagger for it would leave a hole
         // on the right of the stage for a third of a second.
-        const wave = i <= 3 || i === 7 ? 1 : 2;
-        const local = wave === 2 ? i - 4 : i === 7 ? 4 : i;
+        const wave = i <= 3 || i === 7 ? 0 : 1;
+        const local = wave === 1 ? i - 4 : i === 7 ? 4 : i;
         return (
           <At key={k} x={x0 + m.x} y={y0 + m.y} w={m.w} z={1}>
             <Wipe

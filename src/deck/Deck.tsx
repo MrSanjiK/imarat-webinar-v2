@@ -24,6 +24,12 @@ import { t } from "@/content/i18n";
 import { usePreload } from "./usePreload";
 
 const POS_KEY = "imarat-deck-pos";
+const WEBINAR_KEY = "imarat-webinar-cfg";
+
+type WebinarCfg = { width: number; side: "left" | "right" };
+const WEBINAR_DEFAULT: WebinarCfg = { width: 30, side: "right" };
+const WEBINAR_MIN = 16;
+const WEBINAR_MAX = 60;
 
 const variants = {
   enter: (dir: number) => ({ opacity: 0, x: dir * 64 }),
@@ -39,9 +45,34 @@ export function Deck() {
   const [overview, setOverview] = useState(false);
   const [blackout, setBlackout] = useState(false);
   const [webinar, setWebinar] = useState(false);
+  const [webinarCfg, setWebinarCfg] = useState<WebinarCfg>(WEBINAR_DEFAULT);
+  const [webinarPanelOpen, setWebinarPanelOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [lightbox, setLightbox] = useState<LightboxItem | null>(null);
   const [idle, setIdle] = useState(true);
   const { lang, toggle: toggleLang } = useLangCtx();
+
+  // Restore the presenter's own webinar layout once — a size dialled in during
+  // rehearsal must survive an accidental refresh on the day.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(WEBINAR_KEY);
+      if (raw) {
+        const cfg = JSON.parse(raw) as Partial<WebinarCfg>;
+        setWebinarCfg((c) => ({
+          width: typeof cfg.width === "number" ? cfg.width : c.width,
+          side: cfg.side === "left" || cfg.side === "right" ? cfg.side : c.side,
+        }));
+      }
+    } catch {}
+  }, []);
+
+  const saveWebinarCfg = useCallback((cfg: WebinarCfg) => {
+    setWebinarCfg(cfg);
+    try {
+      localStorage.setItem(WEBINAR_KEY, JSON.stringify(cfg));
+    } catch {}
+  }, []);
 
   const lastKey = useRef(0);
   const restored = useRef(false);
@@ -110,6 +141,14 @@ export function Deck() {
         case "webinar":
           setWebinar((v) => !v);
           break;
+        case "webinar-expand":
+          if (!webinar) return;
+          saveWebinarCfg({ ...webinarCfg, width: Math.min(WEBINAR_MAX, webinarCfg.width + 2) });
+          break;
+        case "webinar-shrink":
+          if (!webinar) return;
+          saveWebinarCfg({ ...webinarCfg, width: Math.max(WEBINAR_MIN, webinarCfg.width - 2) });
+          break;
         case "lang":
           toggleLang();
           break;
@@ -120,10 +159,11 @@ export function Deck() {
         case "escape":
           setOverview(false);
           setBlackout(false);
+          setWebinarPanelOpen(false);
           break;
       }
     },
-    [overview, toggleLang],
+    [overview, toggleLang, webinar, webinarCfg, saveWebinarCfg],
   );
 
   useEffect(() => {
@@ -206,18 +246,47 @@ export function Deck() {
     // Clicks on the lightbox's own surfaces stop propagation; anything that
     // still reaches here (e.g. the native video controls) must not navigate.
     if (lightbox) return;
+    if (dragging) return;
     const ratio = e.clientX / window.innerWidth;
     act(ratio > 0.35 ? "fwd" : "back");
   };
 
+  // Drag the seam between stage and camera panel to resize live. A pointer
+  // capture on the handle itself would let the presenter drag past the
+  // window edge without losing the gesture.
+  const dragStartRef = useRef<{ x: number; width: number } | null>(null);
+  const onHandlePointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragStartRef.current = { x: e.clientX, width: webinarCfg.width };
+    setDragging(true);
+  };
+  const onHandlePointerMove = (e: React.PointerEvent) => {
+    if (!dragStartRef.current) return;
+    e.stopPropagation();
+    const dxPx = e.clientX - dragStartRef.current.x;
+    const dxPct = (dxPx / window.innerWidth) * 100;
+    const delta = webinarCfg.side === "right" ? -dxPct : dxPct;
+    const width = Math.min(WEBINAR_MAX, Math.max(WEBINAR_MIN, dragStartRef.current.width + delta));
+    setWebinarCfg((c) => ({ ...c, width }));
+  };
+  const onHandlePointerUp = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    dragStartRef.current = null;
+    setDragging(false);
+    saveWebinarCfg(webinarCfg);
+  };
+
   const dark = slide.theme === "dark";
+  const camSide = webinarCfg.side;
+  const camPct = `${webinarCfg.width}%`;
 
   return (
     <div
       className={`deck-root fixed inset-0 ${idle && !overview ? "cursor-none" : ""}`}
       onClick={onPointer}
     >
-      <Stage containerStyle={webinar ? { right: "42%" } : undefined}>
+      <Stage containerStyle={webinar ? { [camSide]: camPct } : undefined}>
         <VideoPool>
           <LightboxProvider value={setLightbox}>
             <div
@@ -296,49 +365,169 @@ export function Deck() {
         </VideoPool>
       </Stage>
 
-      {/* Webinar camera panel — right 42% of screen when W is active */}
+      {/* Webinar camera panel — presenter-sized and presenter-positioned. */}
       {webinar && (
-        <div
-          className="fixed top-0 right-0 bottom-0"
-          style={{
-            width: "42%",
-            background: "#030E07",
-            borderLeft: "1px solid rgba(0,168,104,0.14)",
-            display: "grid",
-            placeItems: "center",
-            zIndex: 200,
-            pointerEvents: "none",
-          }}
-        >
-          <div style={{ textAlign: "center", color: "rgba(0,168,104,0.32)", userSelect: "none" }}>
-            <svg width="52" height="52" viewBox="0 0 52 52" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="4" y="14" width="34" height="26" rx="5" />
-              <path d="M38 22l10-7v22l-10-7" />
-            </svg>
-            <div style={{ fontSize: 13, letterSpacing: "0.18em", marginTop: 14, textTransform: "uppercase" }}>
-              Kamera
+        <>
+          <div
+            className="fixed top-0 bottom-0"
+            style={{
+              [camSide]: 0,
+              width: camPct,
+              background: "#030E07",
+              [camSide === "right" ? "borderLeft" : "borderRight"]:
+                "1px solid rgba(0,168,104,0.14)",
+              display: "grid",
+              placeItems: "center",
+              zIndex: 200,
+              pointerEvents: "none",
+            }}
+          >
+            <div style={{ textAlign: "center", color: "rgba(0,168,104,0.32)", userSelect: "none" }}>
+              <svg width="52" height="52" viewBox="0 0 52 52" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="14" width="34" height="26" rx="5" />
+                <path d="M38 22l10-7v22l-10-7" />
+              </svg>
+              <div style={{ fontSize: 13, letterSpacing: "0.18em", marginTop: 14, textTransform: "uppercase" }}>
+                Kamera
+              </div>
+              <div style={{ fontSize: 11, letterSpacing: "0.1em", marginTop: 6, opacity: 0.6 }}>
+                Zoom/Telegram oyna shu joyga qo‘yiladi
+              </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* W indicator */}
-      {webinar && (
-        <div
-          className="fixed"
-          style={{
-            bottom: 24,
-            right: "43%",
-            fontSize: 12,
-            letterSpacing: "0.14em",
-            color: "rgba(0,168,104,0.55)",
-            fontFamily: "monospace",
-            pointerEvents: "none",
-            zIndex: 201,
-          }}
-        >
-          ◫ WEBINAR
-        </div>
+          {/* Drag handle on the seam — grabbing it live-resizes the split. */}
+          <div
+            onPointerDown={onHandlePointerDown}
+            onPointerMove={onHandlePointerMove}
+            onPointerUp={onHandlePointerUp}
+            onClick={(e) => e.stopPropagation()}
+            className="fixed top-0 bottom-0"
+            style={{
+              [camSide]: `calc(${camPct} - 5px)`,
+              width: 10,
+              cursor: "col-resize",
+              zIndex: 202,
+              background: dragging ? "rgba(0,168,104,0.35)" : "transparent",
+            }}
+          />
+
+          {/* Indicator + settings toggle */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setWebinarPanelOpen((v) => !v);
+            }}
+            className="fixed"
+            style={{
+              bottom: 24,
+              [camSide]: `calc(${camPct} + 14px)`,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              letterSpacing: "0.14em",
+              color: "rgba(0,168,104,0.8)",
+              background: "rgba(3,14,7,0.55)",
+              border: "1px solid rgba(0,168,104,0.3)",
+              borderRadius: 999,
+              padding: "8px 14px",
+              fontFamily: "monospace",
+              zIndex: 201,
+              cursor: "pointer",
+            }}
+          >
+            ◫ WEBINAR {Math.round(webinarCfg.width)}%
+          </button>
+
+          {webinarPanelOpen && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="fixed"
+              style={{
+                bottom: 64,
+                [camSide]: `calc(${camPct} + 14px)`,
+                zIndex: 203,
+                background: "#0A1F14",
+                border: "1px solid rgba(0,168,104,0.3)",
+                borderRadius: 16,
+                padding: 20,
+                width: 260,
+                color: "#F4F1EA",
+                boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+              }}
+            >
+              <div style={{ fontSize: 12, letterSpacing: "0.14em", opacity: 0.6, marginBottom: 14 }}>
+                WEBINAR SOZLAMALARI
+              </div>
+
+              <div style={{ fontSize: 13, marginBottom: 8, opacity: 0.85 }}>
+                Kamera kengligi — {Math.round(webinarCfg.width)}%
+              </div>
+              <input
+                type="range"
+                min={WEBINAR_MIN}
+                max={WEBINAR_MAX}
+                value={webinarCfg.width}
+                onChange={(e) =>
+                  saveWebinarCfg({ ...webinarCfg, width: Number(e.target.value) })
+                }
+                style={{ width: "100%" }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 11,
+                  opacity: 0.5,
+                  marginTop: 4,
+                }}
+              >
+                <span>{WEBINAR_MIN}%</span>
+                <span>{WEBINAR_MAX}%</span>
+              </div>
+
+              <div style={{ fontSize: 13, marginTop: 20, marginBottom: 8, opacity: 0.85 }}>
+                Kamera joyi
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {(["left", "right"] as const).map((side) => (
+                  <button
+                    key={side}
+                    onClick={() => saveWebinarCfg({ ...webinarCfg, side })}
+                    style={{
+                      flex: 1,
+                      padding: "8px 0",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      cursor: "pointer",
+                      background: webinarCfg.side === side ? "rgba(0,168,104,0.9)" : "rgba(255,255,255,0.06)",
+                      color: webinarCfg.side === side ? "#051810" : "#F4F1EA",
+                      border: "1px solid rgba(0,168,104,0.3)",
+                    }}
+                  >
+                    {side === "left" ? "Chapda" : "O‘ngda"}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 18,
+                  paddingTop: 14,
+                  borderTop: "1px solid rgba(244,241,234,0.12)",
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                  opacity: 0.55,
+                }}
+              >
+                Chegarani sichqoncha bilan sudrab ham o‘lchamni o‘zgartirish mumkin. Klaviatura: <b>[</b> / <b>]</b> — kichraytirish / kattalashtirish, <b>W</b> — yoqish/o‘chirish.
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

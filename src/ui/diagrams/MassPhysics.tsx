@@ -282,8 +282,8 @@ export function MassPhysics({ step }: { step: number }) {
         cx={BRICK_CX}
         h={BRICK_H}
         on={mass}
-        fill="rgba(244,251,244,0.16)"
-        stroke={BASE}
+        fill="rgba(220,80,50,0.25)"
+        stroke="#E05032"
         bands={11}
         delay={0.05}
       />
@@ -305,18 +305,29 @@ export function MassPhysics({ step }: { step: number }) {
       >
         <text
           x={BRICK_CX}
-          y={BASE_Y - BRICK_H - 38}
-          fill={BASE}
-          fontSize={54}
+          y={BASE_Y - BRICK_H - 52}
+          fill="#E05032"
+          fontSize={72}
           textAnchor="middle"
           className="font-display tnum"
-          style={{ fontWeight: 600 }}
+          style={{ fontWeight: 700 }}
         >
           {brickV}
         </text>
         <text
           x={BRICK_CX}
-          y={BASE_Y - BRICK_H - 12}
+          y={BASE_Y - BRICK_H - 18}
+          fill={MID}
+          fontSize={26}
+          textAnchor="middle"
+          className="font-display"
+          style={{ fontWeight: 700 }}
+        >
+          {t(q.brickLabel, lang)}
+        </text>
+        <text
+          x={BRICK_CX}
+          y={BASE_Y - BRICK_H + 6}
           fill={MID}
           fontSize={20}
           textAnchor="middle"
@@ -334,18 +345,29 @@ export function MassPhysics({ step }: { step: number }) {
       >
         <text
           x={AER_CX}
-          y={BASE_Y - AER_H - 38}
+          y={BASE_Y - AER_H - 52}
           fill={V.leaf}
-          fontSize={54}
+          fontSize={72}
           textAnchor="middle"
           className="font-display tnum"
-          style={{ fontWeight: 600 }}
+          style={{ fontWeight: 700 }}
         >
           {aerV}
         </text>
         <text
           x={AER_CX}
-          y={BASE_Y - AER_H - 12}
+          y={BASE_Y - AER_H - 18}
+          fill={V.leaf}
+          fontSize={26}
+          textAnchor="middle"
+          className="font-display"
+          style={{ fontWeight: 700 }}
+        >
+          {t(q.blockLabel, lang)}
+        </text>
+        <text
+          x={AER_CX}
+          y={BASE_Y - AER_H + 6}
           fill={MID}
           fontSize={20}
           textAnchor="middle"
@@ -359,8 +381,8 @@ export function MassPhysics({ step }: { step: number }) {
       <motion.text
         x={BRICK_CX}
         y={BASE_Y + 36}
-        fill={MID}
-        fontSize={23}
+        fill="#E05032"
+        fontSize={21}
         textAnchor="middle"
         className="font-mono"
         style={{ letterSpacing: "0.06em" }}
@@ -374,7 +396,7 @@ export function MassPhysics({ step }: { step: number }) {
         x={AER_CX}
         y={BASE_Y + 36}
         fill={V.leaf}
-        fontSize={23}
+        fontSize={21}
         textAnchor="middle"
         className="font-mono"
         style={{ letterSpacing: "0.06em" }}
@@ -388,17 +410,34 @@ export function MassPhysics({ step }: { step: number }) {
 
       {/* ══ step 2 · the mass block recedes; the formula lands on the slide ══ */}
 
+      {/* F=m·a legend — fades in at step 2, lower-left */}
+      <motion.g
+        initial={false}
+        animate={{ opacity: formula ? 1 : 0 }}
+        transition={{ duration: 0.4, ease: EASE, delay: formula ? 0.3 : 0 }}
+      >
+        {/* F row */}
+        <text x={60} y={542} fill="#E05032" fontSize={22} className="font-display" style={{ fontWeight: 700 }}>F</text>
+        <text x={80} y={542} fill={MID} fontSize={22} className="font-mono">= Kuch (N)</text>
+        {/* m row */}
+        <text x={60} y={566} fill="#E05032" fontSize={22} className="font-display" style={{ fontWeight: 700 }}>m</text>
+        <text x={80} y={566} fill={MID} fontSize={22} className="font-mono">= Massa (kg)</text>
+        {/* a row */}
+        <text x={60} y={590} fill="#E05032" fontSize={22} className="font-display" style={{ fontWeight: 700 }}>a</text>
+        <text x={80} y={590} fill={MID} fontSize={22} className="font-mono">= Tezlanish (m/s²)</text>
+      </motion.g>
+
       {/* ══ step 3 · force ══════════════════════════════════════════════════ */}
 
       <Draw d="M 66 372 V 566" on={force} stroke={DIM} w={2.5} dur={0.5} />
 
-      <ForceArrow y={BRICK_ARROW_Y} len={ARROW_LEN} on={force} color={V.ember} delay={0.12} thick={16} />
+      <ForceArrow y={BRICK_ARROW_Y} len={ARROW_LEN} on={force} color="#E05032" delay={0.12} thick={16} />
       <ForceArrow y={AER_ARROW_Y} len={ARROW_LEN / RATIO} on={force} color={V.leaf} delay={0.42} thick={16} />
 
       <motion.text
         x={92}
         y={BRICK_ARROW_Y - 26}
-        fill={V.ember}
+        fill="#E05032"
         fontSize={30}
         className="font-display"
         style={{ fontWeight: 600 }}

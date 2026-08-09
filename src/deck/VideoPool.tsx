@@ -35,6 +35,12 @@ export type Placement = {
   opacity?: number;
   /** Native transport controls + pointer events. Lightbox mode. */
   controls?: boolean;
+  /**
+   * Swap to the untrimmed, audible cut. Requested by the lightbox only: the
+   * slide sources are silent and sometimes trimmed, which is right for a
+   * looping backdrop and wrong for a clip someone chose to watch.
+   */
+  full?: boolean;
 };
 
 type Ctx = {
@@ -80,7 +86,8 @@ export function VideoPool({ children }: { children: React.ReactNode }) {
         cur.x === p.x && cur.y === p.y && cur.w === p.w && cur.h === p.h &&
         cur.playing === p.playing && cur.muted === p.muted &&
         cur.opacity === p.opacity && cur.z === p.z && cur.radius === p.radius &&
-        cur.fit === p.fit && cur.loop === p.loop && cur.controls === p.controls
+        cur.fit === p.fit && cur.loop === p.loop && cur.controls === p.controls &&
+        cur.full === p.full
       ) {
         return prev;
       }
@@ -162,6 +169,10 @@ export function VideoPool({ children }: { children: React.ReactNode }) {
         {VIDEOS.map((v) => {
           const s = slots[v.id];
           const on = !!s;
+          // Lightbox mode plays the untrimmed, audible cut. Swapping `src`
+          // reloads the element, which is why it is never done for a slide
+          // backdrop — only for a clip the presenter deliberately expanded.
+          const full = !!s?.full && !!v.full;
           return (
             <div
               key={v.id}
@@ -187,7 +198,7 @@ export function VideoPool({ children }: { children: React.ReactNode }) {
                 ref={(node) => {
                   if (node) els.current[v.id] = node;
                 }}
-                src={attached.includes(v.id) ? v.src : undefined}
+                src={full ? v.full : attached.includes(v.id) ? v.src : undefined}
                 poster={v.poster}
                 muted={s?.muted !== false}
                 playsInline

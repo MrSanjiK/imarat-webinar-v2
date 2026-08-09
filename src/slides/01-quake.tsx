@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { EASE, STAGE_H, type SlideProps } from "@/deck/types";
+import { EASE, STAGE_H, STAGE_W, type SlideProps } from "@/deck/types";
 import { Reveal, Stagger } from "@/deck/Reveal";
 import { VideoSlot } from "@/deck/VideoPool";
 import { ExpandCorner, VideoExpand } from "@/deck/Lightbox";
@@ -150,19 +150,19 @@ export function Quake1966({ step }: SlideProps) {
         w={vw}
         h={vh}
         radius={32}
-        playing={step >= 1}
+        playing={step >= 0}
         loop
         muted
         fit="cover"
         z={8}
-        opacity={step >= 1 ? 1 : 0.26}
+        opacity={1}
       />
-      <VideoFrame x={vx} y={vy} w={vw} h={vh} on={step >= 1} />
-      {step >= 1 && <VideoExpand id="archive-1966-a" x={vx} y={vy} w={vw} h={vh} radius={32} />}
+      <VideoFrame x={vx} y={vy} w={vw} h={vh} on={step >= 0} />
+      {step >= 0 && <VideoExpand id="archive-1966-a" x={vx} y={vy} w={vw} h={vh} radius={32} />}
 
       {/* Mono timecode under the frame, clear of the progress rail at 988. */}
       <At x={vx} y={vy + vh + 26} w={vw} z={21}>
-        <Reveal at={1} step={step} y={10} delay={0.24}>
+        <Reveal at={0} step={step} y={10} delay={0.24}>
           <div
             className="font-mono tnum"
             style={{ fontSize: 20, letterSpacing: "0.18em", color: PAPER_3 }}
@@ -807,14 +807,14 @@ export function QuakeTurkey({ step }: SlideProps) {
         id="turkey-long"
         x={0}
         y={0}
-        w={1180}
+        w={STAGE_W}
         h={STAGE_H}
         playing={step >= 1}
         loop
         muted
         fit="cover"
         z={4}
-        opacity={0.32}
+        opacity={0.46}
       />
 
       <div
@@ -823,7 +823,7 @@ export function QuakeTurkey({ step }: SlideProps) {
           inset: 0,
           zIndex: 5,
           background:
-            "linear-gradient(90deg, rgba(5,24,16,0.95) 0%, rgba(5,24,16,0.88) 46%, rgba(5,24,16,0.74) 100%)",
+            "linear-gradient(90deg, rgba(5,24,16,0.96) 0%, rgba(5,24,16,0.90) 32%, rgba(5,24,16,0.52) 60%, rgba(5,24,16,0.22) 100%)",
         }}
       />
       {step >= 1 && <ExpandCorner item={{ kind: "video", id: "turkey-long" }} />}

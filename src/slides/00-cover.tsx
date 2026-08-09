@@ -5,7 +5,7 @@ import { Reveal } from "@/deck/Reveal";
 import { useLang } from "@/content/lang";
 import { t } from "@/content/i18n";
 import { S } from "@/content/strings";
-import { At, Body, Caption, Chip, M, Rule, Slide, Title } from "@/ui/layout";
+import { At, Chip, M, Rule, Slide, Title } from "@/ui/layout";
 import { Glow, Mesh, V, Wipe } from "@/ui/vivid";
 import { useLightbox } from "@/deck/Lightbox";
 
@@ -141,8 +141,8 @@ export function Cover({ step }: SlideProps) {
           <Rule w={188} color={V.gold} thickness={4} delay={0.36} />
         </Reveal>
 
-        <Reveal at={1} step={step} style={{ marginTop: 32 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" }}>
+        <Reveal at={0} step={step} delay={0.36} style={{ marginTop: 36 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
             {[
               { label: S.chapters.c1.title, color: "#FF5E3A" },
               { label: S.chapters.c2.title, color: V.emerald },
@@ -154,17 +154,17 @@ export function Cover({ step }: SlideProps) {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
-                  fontSize: 26,
+                  gap: 12,
+                  fontSize: 32,
                   fontWeight: 500,
                   color: V.ink,
-                  letterSpacing: "-0.01em",
+                  letterSpacing: "-0.015em",
                 }}
               >
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                <div style={{ width: 12, height: 12, borderRadius: "50%", background: color, flexShrink: 0 }} />
                 {t(label, lang)}
                 {i < 3 && (
-                  <div style={{ width: 1, height: 22, background: "rgba(10,31,20,0.18)", marginLeft: 4 }} />
+                  <div style={{ width: 1, height: 26, background: "rgba(10,31,20,0.18)", marginLeft: 4 }} />
                 )}
               </div>
             ))}
@@ -172,31 +172,8 @@ export function Cover({ step }: SlideProps) {
         </Reveal>
       </At>
 
-      {/* Speaker */}
-      <At x={M.left} y={796} w={760}>
-        <Reveal at={1} step={step} delay={0.1}>
-          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            <div
-              style={{
-                width: 4,
-                height: 62,
-                background: V.emerald,
-                borderRadius: 3,
-                flexShrink: 0,
-              }}
-            />
-            <div>
-              <div style={{ fontSize: 30, fontWeight: 500, color: V.ink, letterSpacing: "-0.01em" }}>
-                {t(S.brand.speaker, lang)}
-              </div>
-              <Caption style={{ marginTop: 6 }}>{t(S.brand.speakerRole, lang)}</Caption>
-            </div>
-          </div>
-        </Reveal>
-      </At>
-
       <At x={M.left} y={STAGE_H - 178} w={520}>
-        <Reveal at={1} step={step} delay={0.24}>
+        <Reveal at={0} step={step} delay={0.46}>
           <div className="font-mono" style={{ fontSize: 21, letterSpacing: "0.12em", color: V.ash }}>
             {t(S.cover.hint, lang)}
           </div>

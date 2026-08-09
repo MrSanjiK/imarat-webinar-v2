@@ -73,28 +73,18 @@ function Icon({ kind }: { kind: Poi["icon"] }) {
   const s = { fill: "none", stroke: V.paper, strokeWidth: 2.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   switch (kind) {
     case "plane":
-      // Top-down airport terminal: main building + concourse wings + runway below
       return (
         <g fill="none" stroke={V.paper} strokeLinecap="round" strokeLinejoin="round">
-          {/* Main terminal hall */}
-          <rect x={-13} y={-18} width={26} height={7} rx={2} strokeWidth={2.2} />
-          {/* Left concourse wing */}
-          <path d="M -13 -14 L -20 -14 L -20 -8 L -13 -8" strokeWidth={2} />
-          {/* Right concourse wing */}
-          <path d="M 13 -14 L 20 -14 L 20 -8 L 13 -8" strokeWidth={2} />
-          {/* Gate fingers left */}
-          <path d="M -19 -10 L -22 -10 M -19 -14 L -22 -14" strokeWidth={1.6} />
-          {/* Gate fingers right */}
-          <path d="M 19 -10 L 22 -10 M 19 -14 L 22 -14" strokeWidth={1.6} />
-          {/* Taxiway */}
-          <path d="M 0 -11 L 0 -1" strokeWidth={1.8} />
-          {/* Runway — two parallel edges */}
-          <path d="M -15 -1 L -15 16" strokeWidth={2.6} />
-          <path d="M 15 -1 L 15 16" strokeWidth={2.6} />
-          {/* Runway thresholds */}
-          <path d="M -18 -1 L 18 -1 M -18 16 L 18 16" strokeWidth={1.6} />
-          {/* Centreline dashes */}
-          <path d="M 0 2 L 0 6 M 0 9 L 0 13" strokeWidth={1.6} />
+          {/* Fuselage — nose up */}
+          <path d="M 0 -17 C 4 -11 4 -1 3 7 L 0 16 L -3 7 C -4 -1 -4 -11 0 -17" strokeWidth={2.2} />
+          {/* Left main wing */}
+          <path d="M -3 0 L -20 9 L -18 13 L -3 6" strokeWidth={2} />
+          {/* Right main wing */}
+          <path d="M 3 0 L 20 9 L 18 13 L 3 6" strokeWidth={2} />
+          {/* Left tail stabiliser */}
+          <path d="M -3 10 L -11 17 L -3 17" strokeWidth={1.8} />
+          {/* Right tail stabiliser */}
+          <path d="M 3 10 L 11 17 L 3 17" strokeWidth={1.8} />
         </g>
       );
     case "metro":

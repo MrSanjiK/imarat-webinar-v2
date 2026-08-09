@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { DUR, EASE, STAGE_H, STAGE_W } from "./types";
 import { useVideoPool } from "./VideoPool";
 import type { VideoId } from "./videos";
+import { VIDEO_BY_ID } from "./videos";
 
 /**
  * Fullscreen media inspection during the live webinar. The presenter clicks a
@@ -135,6 +136,9 @@ export function LightboxLayer({
     if (item.kind !== "video") return;
     const id = item.id;
     const prev = pool.get(id);
+    const def = VIDEO_BY_ID.get(id);
+    const full = !!def?.full;
+
     pool.place(id, {
       x: 0,
       y: 0,
@@ -143,18 +147,56 @@ export function LightboxLayer({
       radius: 0,
       fit: "contain",
       playing: true,
-      loop: prev?.loop ?? true,
+      loop: false,
       muted: false,
       opacity: 1,
       z: 45,
       controls: true,
+      full,
     });
+
+    // Two things have to be forced on the DOM node directly. React does not
+    // reliably reconcile `muted` on a mounted <video>, and the pool's playback
+    // effect runs after paint — outside the gesture window a play() with sound
+    // needs. So unmute and start here, synchronously, while the click that
+    // opened the lightbox still counts as user activation.
+    const node = pool.el(id);
+    if (!node) return;
+
+    node.muted = false;
+    node.volume = 1;
+    void node.play().catch(() => {});
+
+    // Swapping to the full source resets the element, so the seek cannot happen
+    // now: this effect runs in the commit *before* React re-renders with the new
+    // src. Wait for the swapped file's own metadata, then jump to the moment the
+    // slide was showing — expanding the shake test should not replay the four
+    // minutes of walk-up that precede it.
+    const start = def?.fullStart ?? 0;
+    const onMeta = () => {
+      if (full && !node.currentSrc.endsWith(def!.full!.split("/").pop()!)) return;
+      node.removeEventListener("loadedmetadata", onMeta);
+      if (start > 0 && Number.isFinite(node.duration) && start < node.duration) {
+        node.currentTime = start;
+      }
+      node.muted = false;
+      node.volume = 1;
+      void node.play().catch(() => {});
+    };
+
+    if (full) node.addEventListener("loadedmetadata", onMeta);
+    else if (start === 0) node.currentTime = 0;
+
     return () => {
+      node.removeEventListener("loadedmetadata", onMeta);
       // Only restore if our override is still what's on stage. If the slide
       // changed while the exit animation ran, its VideoSlot has already nulled
       // or re-placed the slot, and stomping that would strand a video on the
       // wrong slide.
-      if (pool.get(id)?.controls) pool.place(id, prev);
+      if (pool.get(id)?.controls) {
+        node.muted = true;
+        pool.place(id, prev);
+      }
     };
   }, [item, pool]);
 
